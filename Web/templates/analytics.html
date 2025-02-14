@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analytics Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">Student Tracking</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                {% if current_user.role == 'admin' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('students') }}">Manage Students</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('analytics') }}">Analytics</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('dashboard') }}">Entry/Exit</a>
+                </li>
+                {% endif %}
+            </ul>
+    
+            <div class="ml-auto d-flex align-items-center">
+                <span class="text-white mr-3">Logged in as {{ role }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Logout</a>
+            </div>
+        </div>
+    </nav>
+ 
+
+    <div class="container mt-4">
+        <h2 class="mb-4">📊 Security Analytics</h2>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5>Total Entries</h5>
+                        <h2>{{ total_entries }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-danger text-white">
+                    <div class="card-body">
+                        <h5>Total Exits</h5>
+                        <h2>{{ total_exits }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5>Students Inside</h5>
+                        <h2>{{ students_inside }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h3>📅 Hourly Activity</h3>
+                {{ plot_hourly|safe }}
+            </div>
+            <div class="col-md-6">
+                <h3>📈 Daily Trend</h3>
+                {{ plot_daily|safe }}
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h3>🔄 Entry vs Exit Distribution</h3>
+                {{ plot_pie|safe }}
+            </div>
+            <div class="col-md-6">
+                <h3>🏆 Frequent Visitors (Top 5)</h3>
+                <ul class="list-group">
+                    {% for student_id, count in frequent_visitors %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            Student ID: {{ student_id }} <span class="badge badge-primary">{{ count }} visits</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h3>⏳ Peak Entry & Exit Hours</h3>
+                <ul class="list-group">
+                    {% for hour, status, count in peak_hours %}
+                        <li class="list-group-item">
+                            <strong>{{ status|capitalize }}</strong> at {{ hour }}:00 → <span class="badge badge-info">{{ count }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h3>📜 Recent Logs</h3>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Status</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.student_id }}</td>
+                            <td class="{% if log.status == 'entry' %}text-success{% else %}text-danger{% endif %}">
+                                {{ log.status|upper }}
+                            </td>
+                            <td>{{ log.timestamp }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

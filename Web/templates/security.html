@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Security Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+
+
+
+<nav class="navbar navbar-light bg-light">
+    <a href="{{ url_for('login') }}" class="btn btn-outline-light"><span class="navbar-brand mb-0 h1">Login as Admin</span></a>
+  </nav>
+
+  {% with messages = get_flashed_messages(with_categories=True) %}
+  {% if messages %}
+      {% for category, message in messages %}
+          <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
+      {% endfor %}
+  {% endif %}
+{% endwith %}
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Entry/Exit Log</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('security_view') }}">
+                            <div class="form-group">
+                                <input type="text" name="enrollment" 
+                                       class="form-control form-control-lg" 
+                                       placeholder="Scan Enrollment Number" 
+                                       required autofocus>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block btn-lg">
+                                Submit
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Recent Activity</h4>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Enrollment</th>
+                                    <th>Name</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log, student in logs %}
+                                <tr>
+                                    <td>{{ student.enrollment_number }}</td>
+                                    <td>{{ student.name }}</td>
+                                    <td>{{ log.timestamp.strftime('%H:%M:%S') }}</td>
+                                    <td class="{% if log.status == 'entry' %}text-success{% else %}text-danger{% endif %}">
+                                        {{ log.status|upper }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

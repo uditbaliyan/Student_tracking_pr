@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Students</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">Student Tracking</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                {% if current_user.role == 'admin' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('students') }}">Manage Students</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('analytics') }}">Analytics</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('dashboard') }}">Entry/Exit</a>
+                </li>
+                {% endif %}
+            </ul>
+    
+            <div class="ml-auto d-flex align-items-center">
+                <span class="text-white mr-3">Logged in as {{ role }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Logout</a>
+            </div>
+        </div>
+    </nav>
+ 
+
+    <div class="container mt-4">
+        <h2>Student Management</h2>
+        
+        <!-- Add Student Form -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Add New Student</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_student') }}">
+                    <div class="form-row">
+                        <div class="form-group col-md-3">
+                            <input type="text" name="name" class="form-control" placeholder="Full Name" required>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <input type="text" name="enrollment" class="form-control" placeholder="Enrollment Number" required>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <input type="text" name="department" class="form-control" placeholder="Department">
+                        </div>
+                        <div class="form-group col-md-2">
+                            <input type="number" name="year" class="form-control" placeholder="Year" min="1" max="6">
+                        </div>
+                        <div class="form-group col-md-1">
+                            <button type="submit" class="btn btn-success btn-block">Add</button>
+                        </div>
+                    </div>
+                </form>
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-info mt-2">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+
+        <!-- Students List -->
+        <div class="card">
+            <div class="card-header">
+                <h4>Registered Students</h4>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Enrollment Number</th>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Year</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>{{ student.enrollment_number }}</td>
+                            <td>{{ student.name }}</td>
+                            <td>{{ student.department }}</td>
+                            <td>{{ student.year }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
