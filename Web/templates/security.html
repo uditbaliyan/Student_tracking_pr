@@ -1,39 +1,112 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Security Dashboard</title>
+    <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #fff;
+            color: #121212;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        /* Navbar */
+        .navbar {
+            margin-bottom: 20px;
+        }
+
+        /* Date and Time Display (smaller size) */
+        #date,
+        #clock {
+            font-size: 1.5rem;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        /* Card styling using light mode defaults */
+        .card {
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        /* Table styling */
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #f8f9fa;
+        }
+
+        /* Form and Button */
+        .form-control {
+            border-radius: 5px;
+        }
+
+        .btn {
+            border-radius: 5px;
+        }
+
+        /* Flash messages styling */
+        .alert {
+            border-radius: 5px;
+        }
+    </style>
 </head>
+
 <body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Security Dashboard</a>
+        <div class="ml-auto">
+            <a href="{{ url_for('login') }}" class="btn btn-outline-primary">Login as Admin</a>
+        </div>
+    </nav>
 
+    <div class="container">
+        <!-- Date and Time Display (stacked at the top) -->
+        <div class="row justify-content-center">
+            <div class="col-md-8 text-center">
+                <div id="date"></div>
+                <div id="clock"></div>
+            </div>
+        </div>
 
+        <!-- Flash Messages -->
+        <div class="mt-2">
+            {% with messages = get_flashed_messages(with_categories=True) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+        </div>
 
-<nav class="navbar navbar-light bg-light">
-    <a href="{{ url_for('login') }}" class="btn btn-outline-light"><span class="navbar-brand mb-0 h1">Login as Admin</span></a>
-  </nav>
-
-  {% with messages = get_flashed_messages(with_categories=True) %}
-  {% if messages %}
-      {% for category, message in messages %}
-          <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
-      {% endfor %}
-  {% endif %}
-{% endwith %}
-
-    <div class="container mt-4">
-        <div class="row">
+        <!-- Entry/Exit Form and Student Details side by side -->
+        <div class="row justify-content-center mt-4">
+            <!-- Entry/Exit Form Column -->
             <div class="col-md-6">
-                <div class="card">
+                <div class="card mb-3">
                     <div class="card-header">
-                        <h4>Entry/Exit Log</h4>
+                        <h4 class="mb-0">Entry/Exit Log</h4>
                     </div>
                     <div class="card-body">
                         <form method="POST" action="{{ url_for('security_view') }}">
                             <div class="form-group">
-                                <input type="text" name="enrollment" 
-                                       class="form-control form-control-lg" 
-                                       placeholder="Scan Enrollment Number" 
-                                       required autofocus>
+                                <input type="text" name="enrollment" class="form-control form-control-lg"
+                                    placeholder="Scan Enrollment Number" required autofocus>
                             </div>
                             <button type="submit" class="btn btn-primary btn-block btn-lg">
                                 Submit
@@ -42,39 +115,82 @@
                     </div>
                 </div>
             </div>
-
+            <!-- Student Details Column -->
             <div class="col-md-6">
+                
                 <div class="card">
                     <div class="card-header">
-                        <h4>Recent Activity</h4>
+                        <h4 class="mb-0">Student Details</h4>
                     </div>
                     <div class="card-body">
                         <table class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Enrollment</th>
-                                    <th>Name</th>
-                                    <th>Time</th>
+                                    <th>Student Name</th>
+                                    <th>Enrollment No.</th>
+                                    <th>Date &amp; Time</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
+                            {% if student_result %}
                             <tbody>
-                                {% for log, student in logs %}
                                 <tr>
-                                    <td>{{ student.enrollment_number }}</td>
-                                    <td>{{ student.name }}</td>
-                                    <td>{{ log.timestamp.strftime('%H:%M:%S') }}</td>
-                                    <td class="{% if log.status == 'entry' %}text-success{% else %}text-danger{% endif %}">
-                                        {{ log.status|upper }}
-                                    </td>
+                                    <td>{{ student_result.name }}</td>
+                                    <td>{{ student_result.enrollment_number }}</td>
+                                    <td>{{ student_result.timestamp }}</td>
+                                    <td>{{ student_result.status }}</td>
                                 </tr>
-                                {% endfor %}
                             </tbody>
+                            {% endif %}
                         </table>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+
+        <!-- Students Inside Count (smaller display) -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-4 text-center">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Students Currently Inside : {{ students_inside }}</h5>
                     </div>
                 </div>
             </div>
         </div>
+
     </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script>
+        // Update clock every second
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            let seconds = now.getSeconds();
+            hours = hours < 10 ? "0" + hours : hours;
+            minutes = minutes < 10 ? "0" + minutes : minutes;
+            seconds = seconds < 10 ? "0" + seconds : seconds;
+            document.getElementById("clock").innerText = `${hours}:${minutes}:${seconds}`;
+        }
+
+        // Update date every second
+        function updateDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById("date").innerText = now.toLocaleDateString(undefined, options);
+        }
+
+        setInterval(updateClock, 1000);
+        setInterval(updateDate, 1000);
+        updateClock();
+        updateDate();
+    </script>
 </body>
+
 </html>
