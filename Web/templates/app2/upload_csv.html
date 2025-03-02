@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Upload Student Data CSV</h1>
+<p>Ensure your CSV includes: name, enrollment_number, department, batch, year, semester. Optional: phone_no, address.</p>
+<form method="post" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".csv" required>
+    <button type="submit">Upload</button>
+</form>
+{% for category, message in get_flashed_messages(with_categories=True) %}
+    <p class="flash {{ category }}">{{ message }}</p>
+{% endfor %}
+{% endblock %}

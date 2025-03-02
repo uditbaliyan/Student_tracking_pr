@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Student Tracking</title>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block css %}
+    <!-- Add CSS  here -->
+    {% endblock %}
+</head>
+<body>
+    <header>
+        <nav>
+            <!-- Navigation can be dynamic based on user role -->
+            <a href="{{ url_for('dashboard') }}">Dashboard</a> |
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                <a href="{{ url_for('students') }}">Students</a> |
+                <a href="{{ url_for('upload_csv') }}">Upload CSV</a> |
+                <a href="{{ url_for('analytics') }}">Analytics</a> |
+            {% endif %}
+            <a href="{{ url_for('security_view') }}">Security</a> |
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p>&copy; 2023 Student Tracking System</p>
+    </footer>
+</body>
+</html>

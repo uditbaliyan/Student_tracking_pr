@@ -46,8 +46,9 @@ class Student(db.Model):
     name = db.Column(db.String(100), nullable=False)
     enrollment_number = db.Column(db.String(50), unique=True, nullable=False)
     department = db.Column(db.String(50))
-    # branch =
+    # branch=
     # shift =
+    # sec
     year = db.Column(db.Integer)
 
     def get_id(self):

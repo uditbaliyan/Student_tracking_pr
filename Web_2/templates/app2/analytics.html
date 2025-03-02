@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+{% endblock %}
+{% block content %}
+<h1>Analytics Dashboard</h1>
+
+<!-- Filter Form -->
+<form method="get" class="filter-form">
+    <div class="form-group">
+        <label for="batch">Batch:</label>
+        <select name="batch" id="batch">
+            <option value="">All Batches</option>
+            {% for b in batches %}
+                <option value="{{ b }}" {% if selected_batch == b %}selected{% endif %}>{{ b }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="semester">Semester:</label>
+        <select name="semester" id="semester">
+            <option value="">All Semesters</option>
+            {% for s in semesters %}
+                <option value="{{ s }}" {% if selected_semester == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="start_date">Start Date:</label>
+        <input type="date" name="start_date" id="start_date" value="{{ selected_start_date }}">
+    </div>
+    <div class="form-group">
+        <label for="end_date">End Date:</label>
+        <input type="date" name="end_date" id="end_date" value="{{ selected_end_date }}">
+    </div>
+    <button type="submit">Apply Filters</button>
+</form>
+
+<!-- Metrics Section -->
+<div class="metrics">
+    <div class="metric-card">
+        <h3>Total Entries</h3>
+        <p>{{ total_entries }}</p>
+    </div>
+    <div class="metric-card">
+        <h3>Total Exits</h3>
+        <p>{{ total_exits }}</p>
+    </div>
+    <div class="metric-card">
+        <h3>Unique Students</h3>
+        <p>{{ unique_students }}</p>
+    </div>
+    <div class="metric-card">
+        <h3>Students Currently Inside</h3>
+        <p>{{ students_inside }}</p>
+    </div>
+</div>
+
+<!-- Frequent Visitors -->
+
+<h2>Top 5 Frequent Visitors</h2>
+<ul>
+  {% for visitor in frequent_visitors %}
+    <li>Enrollment Number: {{ visitor.enrollment }} - Visits: {{ visitor.visit_count }}</li>
+  {% endfor %}
+</ul>
+
+
+<!-- Charts Section -->
+<div class="charts">
+    <div class="chart">
+        <h2>Hourly Activity</h2>
+        {{ plot_hourly | safe }}
+    </div>
+    <div class="chart">
+        <h2>Daily Activity</h2>
+        {{ plot_daily | safe }}
+    </div>
+    <div class="chart">
+        <h2>Entry vs Exit Distribution</h2>
+        {{ plot_pie | safe }}
+    </div>
+    <div class="chart">
+        <h2>Monthly Attendance Trends</h2>
+        {{ plot_monthly | safe }}
+    </div>
+    <div class="chart">
+        <h2>Attendance by Batch</h2>
+        {{ plot_batch | safe }}
+    </div>
+</div>
+{% endblock %}
