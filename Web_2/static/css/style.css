@@ -30,7 +30,7 @@ nav a:hover {
 /* Main Content */
 main {
     padding: 20px;
-    max-width: 1200px;
+    max-width: 100%;
     margin: 20px auto;
     background: white;
     border-radius: 8px;

@@ -3,37 +3,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/students.css') }}">
 {% endblock %}
 {% block content %}
+<div class="enter-student">
 <h1>Students</h1>
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Enrollment</th>
-            <th>Department</th>
-            <th>Year</th>
-            <th>Batch</th>
-            <th>Semester</th>
-            <th>Phone</th>
-            <th>Address</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for student in students %}
-        <tr>
-            <td>{{ student.student_id }}</td>
-            <td>{{ student.name }}</td>
-            <td>{{ student.enrollment_number }}</td>
-            <td>{{ student.department }}</td>
-            <td>{{ student.year }}</td>
-            <td>{{ student.batch }}</td>
-            <td>{{ student.semester }}</td>
-            <td>{{ student.phone_no }}</td>
-            <td>{{ student.address }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
 <h2>Add New Student</h2>
 <form method="post" action="{{ url_for('add_student') }}">
     <div>
@@ -70,6 +41,41 @@
     </div>
     <button type="submit">Add Student</button>
 </form>
+</div>
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Enrollment</th>
+                <th>Department</th>
+                <th>Year</th>
+                <th>Batch</th>
+                <th>Semester</th>
+                <th>Phone</th>
+                <th>Address</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            <tr>
+                <td>{{ student.student_id }}</td>
+                <td>{{ student.name }}</td>
+                <td>{{ student.enrollment_number }}</td>
+                <td>{{ student.department }}</td>
+                <td>{{ student.year }}</td>
+                <td>{{ student.batch }}</td>
+                <td>{{ student.semester }}</td>
+                <td>{{ student.phone_no }}</td>
+                <td>{{ student.address }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+
 {% for message in get_flashed_messages() %}
     <p class="flash {{ message[1] }}">{{ message[0] }}</p>
 {% endfor %}

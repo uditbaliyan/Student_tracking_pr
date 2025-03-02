@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import func, distinct,desc
 from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta
@@ -14,7 +15,7 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/udit/Documents/Github/003_Student_tracking/Web/instance/student_tracking.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/udit/Documents/Github/003_Student_tracking/Web_2/instance/student_tracking.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['BACKUP_FOLDER'] = 'backups'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB limit for uploads
@@ -42,10 +43,11 @@ class Student(db.Model):
     enrollment_number = db.Column(db.String(50), unique=True, nullable=False)
     department = db.Column(db.String(50))
     year = db.Column(db.Integer)
-    batch = db.Column(db.String(50), nullable=True)
-    semester = db.Column(db.String(50), nullable=True)
-    phone_no = db.Column(db.String(20), nullable=True)
-    address = db.Column(db.String(200), nullable=True)
+    batch = db.Column(db.String(50), nullable=False)
+    section=db.Column(db.String(2), nullable=False)
+    semester = db.Column(db.String(50), nullable=False)
+    phone_no = db.Column(db.String(20), nullable=False)
+    address = db.Column(db.String(200), nullable=False)
 
     def get_id(self):
     # Return the username as the unique identifier
@@ -71,29 +73,52 @@ def load_user(user_id):
 ## Security View
 @app.route('/security', methods=['GET', 'POST'])
 def security_view():
-    student_result = None
+    student_result = None  # Initialize to None; used for displaying scan results in the template
+    
     if request.method == 'POST':
         enrollment_number = request.form.get('enrollment')
         student = Student.query.filter_by(enrollment_number=enrollment_number).first()
+            
         if student:
-            last_log = Log.query.filter_by(student_id=student.student_id).order_by(Log.timestamp.desc()).first()
+            # Retrieve the most recent log entry for this student
+            last_log = Log.query.filter_by(student_id=student.student_id)\
+                        .order_by(Log.timestamp.desc())\
+                        .first()
+            
+            # Toggle status: if last log was an entry, mark as exit; otherwise, mark as entry.
             new_status = 'exit' if last_log and last_log.status == 'entry' else 'entry'
+            
+            # Create a new log record. (Assumes Log.timestamp is auto-set to current time)
             new_log = Log(student_id=student.student_id, status=new_status)
             db.session.add(new_log)
             db.session.commit()
-            flash(f'Student {enrollment_number} marked as {new_status}', 'success')
+            
+            flash(f'Student {enrollment_number} marked as {new_status}', category="success")
+            
+            # Prepare scan result data to be displayed on the dashboard
             student_result = {
-                'name': student.name,
+                'name': student.name,  # Assumes the Student model has a 'name' attribute
                 'enrollment_number': student.enrollment_number,
-                'timestamp': new_log.timestamp,
+                'timestamp': new_log.timestamp,  # Automatically set current date & time
                 'status': new_status
             }
         else:
-            flash('Invalid enrollment number', 'danger')
+            flash('Invalid enrollment number', category="danger")
     
-    subquery = db.session.query(Log.student_id, func.max(Log.timestamp).label('max_timestamp')).group_by(Log.student_id).subquery()
-    students_inside = db.session.query(Log).join(subquery, (Log.student_id == subquery.c.student_id) & (Log.timestamp == subquery.c.max_timestamp)).filter(Log.status == 'entry').count()
-    return render_template('app2/security.html', students_inside=students_inside, username="Security", student_result=student_result)
+    # Count students currently inside (using ORM to get the latest log for each student)
+    subquery = db.session.query(
+        Log.student_id, func.max(Log.timestamp).label('max_timestamp')
+    ).group_by(Log.student_id).subquery()
+
+    students_inside = db.session.query(Log.student_id).join(
+        subquery, (Log.student_id == subquery.c.student_id) & (Log.timestamp == subquery.c.max_timestamp)
+    ).filter(Log.status == 'entry').distinct().count()
+
+    # Render the template with the additional student_result context (if any)
+    return render_template('app2/security.html', 
+                           students_inside=students_inside, 
+                           username="Security", 
+                           student_result=student_result)
 
 ## Home Route
 @app.route('/')
@@ -179,9 +204,97 @@ def add_student():
 
 
 
+def validate_csv_data(df):
+    """Validates that all required columns exist and contain valid data."""
+    
+    required_columns = ['name', 'enrollment_number', 'department', 'batch', 'year', 'semester', 'phone_no', 'address', 'section']
+    
+    # Normalize column names to lowercase and strip whitespace
+    df.columns = [col.strip().lower() for col in df.columns]
+
+    # Ensure all required columns are present
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        flash(f'Missing required columns: {", ".join(missing_columns)}', 'danger')
+        return False
+
+    # Drop empty rows
+    df.dropna(how='all', inplace=True)
+
+    for index, row in df.iterrows():
+        print(f"Validating row {index}: {row.to_dict()}")  # Debugging log
+
+        # Check for missing or invalid values in required columns
+        for col in required_columns:
+            if pd.isna(row[col]) or row[col] == '':
+                flash(f'Missing value in column "{col}" at row {index}', 'danger')
+                return False  # Reject entire file if any required value is missing
+
+        # Validate enrollment_number (should be a number)
+        if not str(row['enrollment_number']).isdigit():
+            flash(f'Invalid enrollment number at row {index}', 'danger')
+            return False
+        
+        # Validate phone_no (should be a 10-digit number)
+        if not str(row['phone_no']).isdigit() or len(str(row['phone_no'])) != 10:
+            flash(f'Invalid phone number at row {index}', 'danger')
+            return False
+
+    return True  # Data is valid
+
+def process_csv(file_path):
+    """Reads CSV, validates data, and inserts into database if all rows are valid."""
+    try:
+        df = pd.read_csv(file_path)
+
+        if not validate_csv_data(df):
+            flash('CSV file contains invalid data. No records were added.', 'danger')
+            return False  # Stop processing
+
+        for index, row in df.iterrows():
+            student = Student.query.filter_by(enrollment_number=row['enrollment_number']).first()
+            
+            if not student:
+                new_student = Student(
+                    name=row['name'],
+                    enrollment_number=row['enrollment_number'],
+                    department=row['department'],
+                    year=row['year'],
+                    batch=row['batch'],
+                    semester=row['semester'],
+                    phone_no=row['phone_no'],
+                    address=row['address'],
+                    section=row['section'],
+                )
+                db.session.add(new_student)
+            else:
+                # Update existing student
+                student.batch = row['batch']
+                student.semester = row['semester']
+                student.year = row['year']
+
+        try:
+            db.session.commit()
+            flash('CSV file uploaded and processed successfully', 'success')
+            return True
+        except SQLAlchemyError as commit_error:
+            db.session.rollback()
+            flash(f'Error committing to DB: {str(commit_error)}', 'danger')
+            return False
+
+    except Exception as e:
+        flash(f'Error processing CSV: {str(e)}', 'danger')
+        return False
+
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
 @app.route('/upload_csv', methods=['GET', 'POST'])
 @login_required
 def upload_csv():
+    """Handles CSV file upload and processes student data."""
+    
     if current_user.role != 'admin':
         return redirect(url_for('dashboard'))
     
@@ -208,50 +321,10 @@ def upload_csv():
         
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)
-        
-        try:
-            df = pd.read_csv(file_path)
-            # Normalize column names to lowercase and strip whitespace
-            df.columns = [col.strip().lower() for col in df.columns]
-            
-            required_columns = ['name', 'enrollment_number', 'department', 'batch', 'year', 'semester', 'phone_no', 'address']
-            if not all(col in df.columns for col in required_columns):
-                flash('CSV file is missing required columns', 'danger')
-                return redirect(request.url)
-            
-            for index, row in df.iterrows():
-                # Debug: print row data
-                print(f"Processing row {index}: {row.to_dict()}")
-                
-                student = Student.query.filter_by(enrollment_number=row['enrollment_number']).first()
-                if not student:
-                    new_student = Student(
-                        name=row['name'],
-                        enrollment_number=row['enrollment_number'],
-                        department=row['department'],
-                        year=row['year'],
-                        batch=row['batch'],
-                        semester=row['semester'],
-                        phone_no=row.get('phone_no', None),
-                        address=row.get('address', None)
-                    )
-                    db.session.add(new_student)
-                else:
-                    student.batch = row['batch']
-                    student.semester = row['semester']
-                    student.year = row['year']
-            try:
-                db.session.commit()
-                flash('CSV file uploaded and processed successfully', 'success')
-            except Exception as commit_error:
-                db.session.rollback()
-                flash(f'Error committing to DB: {str(commit_error)}', 'danger')
-        except Exception as e:
-            flash(f'Error processing CSV: {str(e)}', 'danger')
-        finally:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-    
+
+        process_csv(file_path)
+            # return redirect(url_for('dashboard'))  # Redirect on success
+
     return render_template('app2/upload_csv.html', role=current_user.role)
 
 
@@ -265,6 +338,8 @@ def analytics():
     end_date_str = request.args.get('end_date')
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else None
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) if end_date_str else None
+    section=request.args.get('section')
+    year=request.args.get('year')
 
     # Base Queries with Filters
     base_query = db.session.query(Log).join(Student, Student.student_id == Log.student_id)
@@ -272,6 +347,10 @@ def analytics():
         base_query = base_query.filter(Student.batch == batch)
     if semester:
         base_query = base_query.filter(Student.semester == semester)
+    if section:
+        base_query = base_query.filter(Student.section == section)
+    if year:
+        base_query = base_query.filter(Student.year == year)
     if start_date:
         base_query = base_query.filter(Log.timestamp >= start_date)
     if end_date:
@@ -298,10 +377,6 @@ def analytics():
     .group_by(Student.enrollment_number)\
     .order_by(desc('visit_count'))\
     .limit(5).all()
-
-    for visitor in frequent_visitors:
-        print(f"Enrollment Number: {visitor.enrollment}, Visits: {visitor.visit_count}")
-
 
     # Hourly Activity Chart
     hour_col = func.strftime('%H', Log.timestamp).label('hour')
@@ -339,6 +414,8 @@ def analytics():
     # Filter Options
     batches = [b[0] for b in db.session.query(Student.batch).distinct().all() if b[0]]
     semesters = [s[0] for s in db.session.query(Student.semester).distinct().all() if s[0]]
+    sections = [s[0] for s in db.session.query(Student.section).distinct().all() if s[0]]
+    years = [s[0] for s in db.session.query(Student.year).distinct().all() if s[0]]
 
     return render_template(
         'app2/analytics.html',
@@ -354,7 +431,9 @@ def analytics():
         plot_batch=plot_batch,
         role=current_user.role,
         batches=batches,
+        sections=sections,
         semesters=semesters,
+        years=years,
         selected_batch=batch,
         selected_semester=semester,
         selected_start_date=start_date_str,

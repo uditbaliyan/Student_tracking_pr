@@ -1,67 +1,97 @@
 /* General Styles */
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f4;
-    color: #333;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
+
 
 h1, h2 {
     color: #2c3e50;
+    font-family: Arial, sans-serif;
+}
+
+
+.enter-student {
+
+    padding: 20px;
+    max-width: 50%;
+    margin: 20px auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+
+}
+
+
+/* Table Container */
+.table-container {
+    max-width: 100%; /* Adjust to full width */
+    margin: 20px auto;
+    border-radius: 8px;
+    overflow: auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border: 1px solid #ddd;
+    max-height: 400px; /* Limits height and enables scrolling */
+    overflow-y: auto;
+    overflow-x: auto;
 }
 
 /* Table Styles */
 table {
     width: 100%;
-    max-width: 900px;
     border-collapse: collapse;
     background: white;
-    margin-top: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     overflow: hidden;
+    table-layout: fixed; /* Ensures equal column width */
 }
 
+/* Fixed Header */
 thead {
     background-color: #3498db;
     color: white;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 thead th {
-    padding: 10px;
+    padding: 12px;
     text-align: left;
+    font-weight: bold;
 }
 
-tbody tr:nth-child(even) {
-    background-color: #f2f2f2;
-}
-
-tbody td {
-    padding: 10px;
+/* Row Formatting */
+tbody tr {
     border-bottom: 1px solid #ddd;
 }
 
-/* Form Styles */
-form {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 500px;
-    margin-top: 20px;
+/* Alternating Row Colors */
+tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
 }
 
-div {
-    margin-bottom: 15px;
+/* Cell Styling */
+td, th {
+    padding: 12px;
+    text-align: left;
+    word-wrap: break-word;
 }
 
+/* Hover Effect */
+tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Scrollbar Customization */
+.table-container::-webkit-scrollbar {
+    width: 10px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f2f2f2;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #3498db;
+    border-radius: 10px;
+}
 label {
     display: block;
     font-weight: bold;
@@ -91,23 +121,4 @@ button {
 
 button:hover {
     background-color: #2980b9;
-}
-
-/* Flash Messages */
-.flash {
-    margin-top: 15px;
-    padding: 10px;
-    border-radius: 5px;
-    font-weight: bold;
-    text-align: center;
-}
-
-.flash.success {
-    background-color: #2ecc71;
-    color: white;
-}
-
-.flash.error {
-    background-color: #e74c3c;
-    color: white;
 }

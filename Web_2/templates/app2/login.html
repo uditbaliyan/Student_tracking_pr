@@ -3,6 +3,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 {% endblock %}
 {% block content %}
+<center>
 <h1>Login</h1>
 <form method="post">
     <div>
@@ -18,4 +19,5 @@
 {% for message in get_flashed_messages() %}
     <p class="flash {{ message[1] }}">{{ message[0] }}</p>
 {% endfor %}
+</center>
 {% endblock %}

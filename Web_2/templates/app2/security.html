@@ -1,25 +1,122 @@
 {% extends "base.html" %}
+
 {% block css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/security.css') }}">
 {% endblock %}
+
 {% block content %}
-<h1>Security Dashboard</h1>
-<p>Students currently inside: {{ students_inside }}</p>
-<form method="post">
-    <label for="enrollment">Enrollment Number:</label>
-    <input type="text" id="enrollment" name="enrollment" required>
-    <button type="submit">Scan</button>
-</form>
-{% if student_result %}
-    <div>
-        <h2>Scan Result</h2>
-        <p>Name: {{ student_result.name }}</p>
-        <p>Enrollment: {{ student_result.enrollment_number }}</p>
-        <p>Timestamp: {{ student_result.timestamp }}</p>
-        <p>Status: {{ student_result.status }}</p>
+
+
+
+    <div class="container">
+
+        <!-- Date and Time Display -->
+        <div class="date-time">
+            <div id="date"></div>
+            <div id="clock"></div>
+        </div>
+
+                <!-- Flash Messages -->
+                <div class="mt-2">
+                    {% with messages = get_flashed_messages(with_categories=True) %}
+                    {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+                </div>
+        <!-- Entry/Exit Form and Student Details -->
+        <div class="cards">
+            <!-- Entry/Exit Form -->
+            <div class="card entry-exit">
+                <div class="card-header">
+                    <h4><i class="fas fa-sign-in-alt"></i> Entry/Exit Log</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('security_view') }}">
+                        <input type="text" name="enrollment" placeholder="Scan Enrollment Number" required autofocus>
+                        <button type="submit"><i class="fas fa-paper-plane"></i> Submit</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Student Details -->
+            <div class="card student-details">
+                <div class="card-header">
+                    <h4><i class="fas fa-user"></i> Student Details</h4>
+                </div>
+                <div class="card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Enrollment No.</th>
+                                <th>Date & Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        {% if student_result %}
+                        <tbody>
+                            <tr>
+                                <td>{{ student_result.name }}</td>
+                                <td>{{ student_result.enrollment_number }}</td>
+                                <td>{{ student_result.timestamp }}</td>
+                                <td>{{ student_result.status }}</td>
+                            </tr>
+                        </tbody>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Students Inside Count -->
+        <div class="students-inside">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="fas fa-users"></i> Students Currently Inside: {{ students_inside }}</h5>
+                </div>
+            </div>
+        </div>
     </div>
-{% endif %}
-{% for message in get_flashed_messages() %}
-    <p class="flash {{ message[1] }}">{{ message[0] }}</p>
-{% endfor %}
+
+
+
+
+
+
+{% endblock %}
+
+{% block js %}
+    <!-- Custom JavaScript -->
+    <script>
+        function updateDateTime() {
+            const now = new Date();
+            const dateString = now.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const timeString = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            document.getElementById('date').textContent = dateString;
+            document.getElementById('clock').textContent = timeString;
+        }
+
+        // Initial call and update every second
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+    </script>
+
 {% endblock %}
