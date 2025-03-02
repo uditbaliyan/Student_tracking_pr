@@ -13,9 +13,15 @@ import plotly.express as px
 import pandas as pd
 from werkzeug.utils import secure_filename
 
+
+import os
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(basedir, 'instance', 'student_tracking.db')}"
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/udit/Documents/Github/003_Student_tracking/Web_2/instance/student_tracking.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['BACKUP_FOLDER'] = 'backups'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB limit for uploads
