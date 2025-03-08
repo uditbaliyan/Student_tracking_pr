@@ -60,7 +60,7 @@ class Log(db.Model):
     __tablename__ = 'logs'
     log_id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.student_id'), nullable=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc) + timedelta(hours=5, minutes=30))
+    timestamp = db.Column(db.DateTime, nullable=False, default= (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).replace(microsecond=0))
     status = db.Column(db.String(10), nullable=False)
 
     def get_id(self):

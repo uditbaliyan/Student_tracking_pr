@@ -28,8 +28,6 @@ h1, h2 {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     border: 1px solid #ddd;
     max-height: 400px; /* Limits height and enables scrolling */
-    overflow-y: auto;
-    overflow-x: auto;
 }
 
 /* Table Styles */
