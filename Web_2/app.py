@@ -91,8 +91,9 @@ def security_view():
             # Toggle status: if last log was an entry, mark as exit; otherwise, mark as entry.
             new_status = 'exit' if last_log and last_log.status == 'entry' else 'entry'
             
-            # Create a new log record. (Assumes Log.timestamp is auto-set to current time)
-            new_log = Log(student_id=student.student_id, status=new_status)
+            # Create a new log record.
+            current_time = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).replace(microsecond=0)
+            new_log = Log(student_id=student.student_id, status=new_status, timestamp = current_time)
             db.session.add(new_log)
             db.session.commit()
             
@@ -155,6 +156,8 @@ def logout():
 def dashboard():
     subquery = db.session.query(Log.student_id, func.max(Log.timestamp).label('latest')).group_by(Log.student_id).subquery()
     inside_count = db.session.query(Log).join(subquery, (Log.student_id == subquery.c.student_id) & (Log.timestamp == subquery.c.latest)).filter(Log.status == 'entry').count()
+
+
     return render_template('app2/dashboard.html', role=current_user.role, inside_count=inside_count, username=current_user.username)
 
 ## Log Entry (alternative entry point)
