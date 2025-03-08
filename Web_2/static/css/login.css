@@ -45,6 +45,11 @@ button:hover {
     background-color: #2980b9;
 }
 
+.card{
+    margin: auto;
+    text-align: center;
+}
+
 /* Flash Messages */
 .flash {
     margin-top: 15px;

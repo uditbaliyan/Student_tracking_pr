@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import func,desc
 from flask_bcrypt import Bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import plotly.express as px
 import pandas as pd
@@ -60,7 +60,7 @@ class Log(db.Model):
     __tablename__ = 'logs'
     log_id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.student_id'), nullable=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc) + timedelta(hours=5, minutes=30))
     status = db.Column(db.String(10), nullable=False)
 
     def get_id(self):
@@ -79,9 +79,9 @@ def security_view():
     student_result = None  # Initialize to None; used for displaying scan results in the template
     
     if request.method == 'POST':
-        enrollment_number = request.form.get('enrollment')
+        enrollment_number = request.form.get('enrollment').lstrip("0")
+        
         student = Student.query.filter_by(enrollment_number=enrollment_number).first()
-            
         if student:
             # Retrieve the most recent log entry for this student
             last_log = Log.query.filter_by(student_id=student.student_id)\
@@ -96,8 +96,9 @@ def security_view():
             db.session.add(new_log)
             db.session.commit()
             
-            flash(f'Student {enrollment_number} marked as {new_status}', category="success")
-            
+            # >> We don't need to flash here
+            # flash(f'Student {enrollment_number} marked as {new_status}', category="success")
+
             # Prepare scan result data to be displayed on the dashboard
             student_result = {
                 'name': student.name,  # Assumes the Student model has a 'name' attribute

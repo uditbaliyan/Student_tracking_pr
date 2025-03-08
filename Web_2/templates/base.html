@@ -13,18 +13,17 @@
 <body>
     <header>
         <nav>
+            {% block navbar %}{% endblock %}
             <!-- Navigation can be dynamic based on user role -->
-            <a href="{{ url_for('dashboard') }}">Dashboard</a> |
             {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                <a href="{{ url_for('students') }}">Students</a> |
-                <a href="{{ url_for('upload_csv') }}">Upload CSV</a> |
-                <a href="{{ url_for('analytics') }}">Analytics</a> |
+            <a href="{{ url_for('dashboard') }}">Dashboard</a> |
+            <a href="{{ url_for('students') }}">Students</a> |
+            <a href="{{ url_for('upload_csv') }}">Upload CSV</a> |
+            <a href="{{ url_for('analytics') }}">Analytics</a> |
             {% endif %}
-            <a href="{{ url_for('security_view') }}">Security</a> |
+
             {% if current_user.is_authenticated %}
                 <a href="{{ url_for('logout') }}">Logout</a>
-            {% else %}
-                <a href="{{ url_for('login') }}">Login</a>
             {% endif %}
         </nav>
     </header>
@@ -32,7 +31,7 @@
         {% block content %}{% endblock %}
     </main>
     <footer>
-        <p>&copy; 2023 Student Tracking System</p>
+        <p>&copy; 2025 Student Tracking System</p>
     </footer>
 </body>
 {% block js %}

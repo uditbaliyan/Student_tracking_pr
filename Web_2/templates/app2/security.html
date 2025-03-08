@@ -4,10 +4,9 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/security.css') }}">
 {% endblock %}
 
+{% block navbar %} <a href="{{url_for('login')}}">Login</a>{% endblock %}
+
 {% block content %}
-
-
-
     <div class="container">
 
         <!-- Date and Time Display -->
