@@ -46,6 +46,9 @@ class Student(db.Model):
     name = db.Column(db.String(100), nullable=False)
     enrollment_number = db.Column(db.String(50), unique=True, nullable=False)
     department = db.Column(db.String(50))
+    # branch=
+    # shift =
+    # sec
     year = db.Column(db.Integer)
 
     def get_id(self):
@@ -70,41 +73,40 @@ def load_user(user_id):
 
 
 @app.route('/security', methods=['GET', 'POST'])
-
 def security_view():
-    if request.method == 'GET':
-        return render_template('security.html')
-
-
+    student_result = None  # Initialize to None; used for displaying scan results in the template
+    
     if request.method == 'POST':
         enrollment_number = request.form.get('enrollment')
-
         student = Student.query.filter_by(enrollment_number=enrollment_number).first()
             
         if student:
+            # Retrieve the most recent log entry for this student
             last_log = Log.query.filter_by(student_id=student.student_id)\
                         .order_by(Log.timestamp.desc())\
                         .first()
             
+            # Toggle status: if last log was an entry, mark as exit; otherwise, mark as entry.
             new_status = 'exit' if last_log and last_log.status == 'entry' else 'entry'
             
+            # Create a new log record. (Assumes Log.timestamp is auto-set to current time)
             new_log = Log(student_id=student.student_id, status=new_status)
             db.session.add(new_log)
             db.session.commit()
-            flash(f'Student {enrollment_number} marked as {new_status}',category="success")
+            
+            flash(f'Student {enrollment_number} marked as {new_status}', category="success")
+            
+            # Prepare scan result data to be displayed on the dashboard
+            student_result = {
+                'name': student.name,  # Assumes the Student model has a 'name' attribute
+                'enrollment_number': student.enrollment_number,
+                'timestamp': new_log.timestamp,  # Automatically set current date & time
+                'status': new_status
+            }
         else:
-            flash('Invalid enrollment number',category="danger")
-
-
-    # Fetch last 10 logs
-    logs = db.session.execute(
-        db.select(Log, Student)
-        .join(Student)
-        .order_by(Log.timestamp.desc())
-        .limit(10)
-    ).all()
-
-    # Count students currently inside (Using ORM correctly)
+            flash('Invalid enrollment number', category="danger")
+    
+    # Count students currently inside (using ORM to get the latest log for each student)
     subquery = db.session.query(
         Log.student_id, func.max(Log.timestamp).label('max_timestamp')
     ).group_by(Log.student_id).subquery()
@@ -113,7 +115,11 @@ def security_view():
         subquery, (Log.student_id == subquery.c.student_id) & (Log.timestamp == subquery.c.max_timestamp)
     ).filter(Log.status == 'entry').distinct().count()
 
-    return render_template('security.html', logs=logs, students_inside=students_inside, username="Security")
+    # Render the template with the additional student_result context (if any)
+    return render_template('security.html', 
+                           students_inside=students_inside, 
+                           username="Security", 
+                           student_result=student_result)
     
 
 # Routes

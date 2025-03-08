@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Security Dashboard</h1>
+<p>Students currently inside: {{ students_inside }}</p>
+<form method="post">
+    <label for="enrollment">Enrollment Number:</label>
+    <input type="text" id="enrollment" name="enrollment" required>
+    <button type="submit">Scan</button>
+</form>
+{% if student_result %}
+    <div>
+        <h2>Scan Result</h2>
+        <p>Name: {{ student_result.name }}</p>
+        <p>Enrollment: {{ student_result.enrollment_number }}</p>
+        <p>Timestamp: {{ student_result.timestamp }}</p>
+        <p>Status: {{ student_result.status }}</p>
+    </div>
+{% endif %}
+{% for message in get_flashed_messages() %}
+    <p class="flash {{ message[1] }}">{{ message[0] }}</p>
+{% endfor %}
+{% endblock %}

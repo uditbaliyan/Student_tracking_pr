@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+{% endblock %}
+
+{% block navbar %} <a href="{{url_for('security_view')}}">back</a>{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Login</h1>
+    <form method="post" class="card">
+        <div>
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+    {% for message in get_flashed_messages() %}
+        <p class="flash {{ message[1] }}">{{ message[0] }}</p>
+    {% endfor %}
+</div>
+{% endblock %}

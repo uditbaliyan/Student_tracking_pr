@@ -1,68 +1,78 @@
-**Student Tracking System**
+# Student Tracking System
 
-### Overview
-The Student Tracking System is a desktop application built using Python and PyQt5 for tracking student entries and exits. It utilizes an SQLite database to store student records, login credentials, and log entries. The system includes user authentication, a logging mechanism for tracking students, data visualization through Matplotlib, and administrative functionalities like adding students and creating database backups.
+## Overview
+This is a Flask-based web application for tracking student entries and exits. It provides security personnel with an interface to log student movements, analyze attendance trends, and manage student records.
 
----
+## Features
+- **User Authentication**: Admin and security personnel can log in.
+- **Student Entry/Exit Logging**: Security can mark students as "entry" or "exit".
+- **Dashboard**: Provides real-time insights into student presence.
+- **CSV Upload**: Bulk student data import.
+- **Analytics**: Visual reports using Matplotlib and Plotly.
+- **Admin Management**: Manage students and logs.
 
-### Features
-- **User Authentication:** Secure login with password hashing (bcrypt) and role-based access (admin/security).
-- **Student Entry/Exit Tracking:** Log students' entry and exit times based on their enrollment number.
-- **Live Status Update:** Displays the number of students currently inside.
-- **Admin Panel:**
-  - Add students manually or via CSV/Excel upload.
-  - Create database backups.
-- **Security Panel:**
-  - View logs of student movements.
-  - Read-only access to logs.
-- **Data Visualization:** Graphs of student activity trends using Matplotlib.
-- **Real-time Clock:** Displays the current date and time.
+## Technologies Used
+- **Flask**: Web framework
+- **Flask-Login**: User authentication
+- **SQLAlchemy**: ORM for database management
+- **Flask-Bcrypt**: Password hashing
+- **Matplotlib & Plotly**: Data visualization
+- **Pandas**: CSV processing
 
----
-
-### Installation & Setup
-#### Prerequisites:
+## Installation
+### Prerequisites
 - Python 3.x
-- Required libraries:
-  ```sh
-  pip install pyqt5 bcrypt matplotlib pandas
-  ```
+- Flask & dependencies
+- SQLite (or another DB setup if preferred)
 
-#### Running the Application:
-1. Clone or download the project.
-2. Navigate to the project folder and run:
+### Setup Instructions
+1. Clone the repository:
    ```sh
-   python app.py
+   git clone https://github.com/yourusername/student-tracking.git
+   cd student-tracking
    ```
-3. The login window will appear. Default credentials (if applicable) should be used initially.
+2. Install dependencies:
+   ```sh
+   pip install -r requirements.txt
+   ```
+3. Configure the database:
+   ```sh
+   flask db upgrade
+   ```
+4. Run the application:
+   ```sh
+   flask run
+   ```
+5. Access the web interface at:
+   ```
+   http://127.0.0.1:5000
+   ```
 
-#### Default Database Tables:
-Upon first launch, the system initializes three tables:
-- **Students**: Stores student details.
-- **Logs**: Tracks student entry/exit records.
-- **Users**: Manages authentication.
+## Usage
+- **Login**: Security personnel and admins can log in.
+- **Security View**: Enter an enrollment number to log student movements.
+- **Dashboard**: Admins can view real-time stats.
+- **Students List**: View and manage student records.
+- **CSV Upload**: Bulk import student data.
+- **Analytics**: View attendance trends over time.
 
----
+## File Structure
+```
+├── app.py                  # Main Flask application
+├── templates/              # HTML templates
+├── static/                 # CSS, JS, and assets
+├── instance/               # SQLite database
+├── uploads/                # Uploaded CSV files
+├── backups/                # Backup data storage
+├── requirements.txt        # Dependencies
+└── README.md               # Project documentation
+```
 
-### Usage Guide
-#### **Login**
-- Enter username and password.
-- Admins can manage students and logs.
-- Security personnel can only view logs.
-
-#### **Tracking Entries/Exits**
-- Enter the student’s enrollment number.
-- Click **Submit** to log the entry/exit.
-
-#### **Admin Functionalities**
-- **Add Students:** Manually or via CSV/Excel.
-- **Create Backup:** Saves a copy of the database.
-
-#### **Viewing Logs**
-- Security personnel can view logs in read-only mode.
-- Admins have full access to data.
-
-#### **Analytics Dashboard**
-- View student movement trends over time.
-
-
+## Future Enhancements
+- Role-based access control
+- Email notifications for unauthorized entries
+- API endpoints for mobile integration
+```python 
+python -c "from app import app, db; app.app_context().push(); db.create_all()"
+python -c "from app import app, db, bcrypt, User; app.app_context().push(); hashed_pw_sc = bcrypt.generate_password_hash('guard1234').decode('utf-8'); hashed_pw_ad = bcrypt.generate_password_hash('admin1234').decode('utf-8'); db.session.add(User(username='udit', password_hash=hashed_pw_ad, role='admin'));db.session.add(User(username='vdit', password_hash=hashed_pw_sc, role='security')); db.session.commit()"
+```

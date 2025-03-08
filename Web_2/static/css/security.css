@@ -1,0 +1,82 @@
+
+body {
+    background-color: white;
+    font-family: Arial, sans-serif;
+    margin: 0;
+}
+.container {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.date-time {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.date-time div {
+    font-size: 1.2em;
+    color: black;
+}
+.cards {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+.card {
+    border: 1px solid gray;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 48%;
+}
+.card-header {
+    padding: 10px;
+    font-size: 1.2em;
+    color: whitesmoke;
+}
+.entry-exit .card-header {
+    background-color: gray;
+}
+.student-details .card-header {
+    background-color: gray;
+}
+.card-body {
+    padding: 20px;
+}
+form input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid lightblue;
+    background-color: white;
+    box-sizing: border-box;
+}
+form button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+thead {
+    background-color: #333;
+    color: white;
+}
+th, td {
+    padding: 10px;
+    text-align: left;
+}
+.students-inside {
+    text-align: center;
+}
+.students-inside .card {
+    display: inline-block;
+    width: auto;
+    padding: 20px;
+}

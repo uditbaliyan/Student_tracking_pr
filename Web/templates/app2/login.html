@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Login</h1>
+<form method="post">
+    <div>
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+    </div>
+    <div>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit">Login</button>
+</form>
+{% for message in get_flashed_messages() %}
+    <p class="flash {{ message[1] }}">{{ message[0] }}</p>
+{% endfor %}
+{% endblock %}
