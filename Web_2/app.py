@@ -2,13 +2,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.sql import func, distinct,desc
+from sqlalchemy.sql import func,desc
 from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta
-from io import BytesIO
-import base64
 import os
-import matplotlib.pyplot as plt
 import plotly.express as px
 import pandas as pd
 from werkzeug.utils import secure_filename
