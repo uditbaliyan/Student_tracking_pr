@@ -4,12 +4,9 @@ from flask_login import LoginManager, login_user, logout_user, login_required, U
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func,distinct
 
-from flask_bcrypt import Bcrypt
 from datetime import datetime
 
-from io import BytesIO
-import base64
-import os
+from flask_bcrypt import Bcrypt
 
 import matplotlib.pyplot as plt
 import plotly.express as px
@@ -20,7 +17,10 @@ import pandas as pd
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/udit/Documents/Github/003_Student_tracking/Web/instance/student_tracking.db'
+# instance\student_tracking.db
+# Example for absolute path (Windows)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///C:/Users/Ankita_Aditya/Desktop/Barcode_based_Attendance_System/Student_tracking_pr/instance/student_tracking.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/udit/Documents/Github/003_Student_tracking/Web/instance/student_tracking.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['BACKUP_FOLDER'] = 'backups'
 
@@ -46,9 +46,6 @@ class Student(db.Model):
     name = db.Column(db.String(100), nullable=False)
     enrollment_number = db.Column(db.String(50), unique=True, nullable=False)
     department = db.Column(db.String(50))
-    # branch=
-    # shift =
-    # sec
     year = db.Column(db.Integer)
 
     def get_id(self):
@@ -59,6 +56,7 @@ class Log(db.Model):
     __tablename__ = 'logs'
     log_id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.student_id'), nullable=False)
+    #utcnow is deprecated -> change it
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     status = db.Column(db.String(10), nullable=False)
 
@@ -71,42 +69,43 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-
+#Security guard page
+@app.route('/')
 @app.route('/security', methods=['GET', 'POST'])
 def security_view():
-    student_result = None  # Initialize to None; used for displaying scan results in the template
-    
+    if request.method == 'GET':
+        return render_template('security.html')
+
+
     if request.method == 'POST':
         enrollment_number = request.form.get('enrollment')
+
         student = Student.query.filter_by(enrollment_number=enrollment_number).first()
             
         if student:
-            # Retrieve the most recent log entry for this student
             last_log = Log.query.filter_by(student_id=student.student_id)\
                         .order_by(Log.timestamp.desc())\
                         .first()
             
-            # Toggle status: if last log was an entry, mark as exit; otherwise, mark as entry.
             new_status = 'exit' if last_log and last_log.status == 'entry' else 'entry'
             
-            # Create a new log record. (Assumes Log.timestamp is auto-set to current time)
             new_log = Log(student_id=student.student_id, status=new_status)
             db.session.add(new_log)
             db.session.commit()
-            
-            flash(f'Student {enrollment_number} marked as {new_status}', category="success")
-            
-            # Prepare scan result data to be displayed on the dashboard
-            student_result = {
-                'name': student.name,  # Assumes the Student model has a 'name' attribute
-                'enrollment_number': student.enrollment_number,
-                'timestamp': new_log.timestamp,  # Automatically set current date & time
-                'status': new_status
-            }
+            flash(f'Student {enrollment_number} marked as {new_status}',category="success")
         else:
-            flash('Invalid enrollment number', category="danger")
-    
-    # Count students currently inside (using ORM to get the latest log for each student)
+            flash('Invalid enrollment number',category="danger")
+
+
+    # Fetch last 10 logs
+    logs = db.session.execute(
+        db.select(Log, Student)
+        .join(Student)
+        .order_by(Log.timestamp.desc())
+        .limit(10)
+    ).all()
+
+    # Count students currently inside (Using ORM correctly)
     subquery = db.session.query(
         Log.student_id, func.max(Log.timestamp).label('max_timestamp')
     ).group_by(Log.student_id).subquery()
@@ -115,17 +114,9 @@ def security_view():
         subquery, (Log.student_id == subquery.c.student_id) & (Log.timestamp == subquery.c.max_timestamp)
     ).filter(Log.status == 'entry').distinct().count()
 
-    # Render the template with the additional student_result context (if any)
-    return render_template('security.html', 
-                           students_inside=students_inside, 
-                           username="Security", 
-                           student_result=student_result)
+    return render_template('security.html', logs=logs, students_inside=students_inside, username="Security")
     
 
-# Routes
-@app.route('/')
-def home():
-    return redirect(url_for('security_view'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -136,7 +127,7 @@ def login():
         
         if user and bcrypt.check_password_hash(user.password_hash, password):
             login_user(user)
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('analytics'))
         flash('Invalid credentials')
     return render_template('login.html')
 
@@ -181,6 +172,7 @@ def log_entry():
     return redirect(url_for('dashboard'))
 
 
+#Student page
 @app.route('/students')
 @login_required
 def students():
@@ -190,6 +182,8 @@ def students():
     students = Student.query.all()
     return render_template('students.html', students=students,role=current_user.role)
 
+
+#New student
 @app.route('/add_student', methods=['POST'])
 @login_required
 def add_student():
@@ -213,7 +207,7 @@ def add_student():
 
 
 
-
+#Analytics Page
 @app.route('/analytics')
 @login_required
 def analytics():
