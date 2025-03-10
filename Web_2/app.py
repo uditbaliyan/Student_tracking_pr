@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func, and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import func,desc
 from flask_bcrypt import Bcrypt
@@ -23,10 +24,70 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['BACKUP_FOLDER'] = 'backups'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB limit for uploads
 
+# When this code is entered instead of enrollement number, all students are marked as exit (who are currently inside)
+secret_force_exit_code = "787898"
+
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+
+## Important functions 
+
+def get_current_time():
+    return (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).replace(microsecond=0)
+
+
+def get_students_inside():
+    # Subquery to get the latest log entry for each student before the given time
+    latest_logs = db.session.query(
+        Log.student_id,
+        func.max(Log.timestamp).label('latest_timestamp')
+    ).group_by(Log.student_id).subquery()
+    
+    # Join with logs to get the status and with students to get their details
+    students_inside = db.session.query(Student).join(
+        Log, Student.student_id == Log.student_id
+    ).join(
+        latest_logs,
+            (Log.student_id == latest_logs.c.student_id) & (Log.timestamp == latest_logs.c.latest_timestamp)
+        ).filter(Log.status == 'entry').all()
+    
+    return students_inside
+ 
+
+# Pushing all students out
+def exiting_all():
+    current_time = get_current_time()
+
+    latest_logs = db.session.query(
+        Log.student_id,
+        func.max(Log.timestamp).label('latest_timestamp')
+    ).group_by(Log.student_id).subquery()
+    
+    # Get all students whose latest status is 'entry'
+    students_inside = db.session.query(Log.student_id).join(
+        latest_logs, 
+        and_(
+            Log.student_id == latest_logs.c.student_id,
+            Log.timestamp == latest_logs.c.latest_timestamp
+        )
+    ).filter(Log.status == 'entry').all()
+    
+    # Create exit logs for all these students
+    for student in students_inside:
+        new_exit_log = Log(
+            student_id=student.student_id,
+            timestamp=current_time,
+            status='exit'
+        )
+        db.session.add(new_exit_log)
+    
+    # Commit all the new exit logs
+    db.session.commit()
+
+
 
 # Database Models
 class User(UserMixin, db.Model):
@@ -60,7 +121,7 @@ class Log(db.Model):
     __tablename__ = 'logs'
     log_id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.student_id'), nullable=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default= (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).replace(microsecond=0))
+    timestamp = db.Column(db.DateTime, nullable=False, default= get_current_time())
     status = db.Column(db.String(10), nullable=False)
 
     def get_id(self):
@@ -80,7 +141,14 @@ def security_view():
     
     if request.method == 'POST':
         enrollment_number = request.form.get('enrollment').lstrip("0")
+
+        # Marking all students as exited when secret code is entered
+        if enrollment_number == secret_force_exit_code:
+            exiting_all()
+            return render_template('app2/security.html', 
+                           students_inside=0,)
         
+        # If normal enrollement number is entered
         student = Student.query.filter_by(enrollment_number=enrollment_number).first()
         if student:
             # Retrieve the most recent log entry for this student
@@ -92,13 +160,9 @@ def security_view():
             new_status = 'exit' if last_log and last_log.status == 'entry' else 'entry'
             
             # Create a new log record.
-            current_time = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).replace(microsecond=0)
-            new_log = Log(student_id=student.student_id, status=new_status, timestamp = current_time)
+            new_log = Log(student_id=student.student_id, status=new_status, timestamp = get_current_time())
             db.session.add(new_log)
             db.session.commit()
-            
-            # >> We don't need to flash here
-            # flash(f'Student {enrollment_number} marked as {new_status}', category="success")
 
             # Prepare scan result data to be displayed on the dashboard
             student_result = {
@@ -109,15 +173,9 @@ def security_view():
             }
         else:
             flash('Invalid enrollment number', category="danger")
-    
-    # Count students currently inside (using ORM to get the latest log for each student)
-    subquery = db.session.query(
-        Log.student_id, func.max(Log.timestamp).label('max_timestamp')
-    ).group_by(Log.student_id).subquery()
 
-    students_inside = db.session.query(Log.student_id).join(
-        subquery, (Log.student_id == subquery.c.student_id) & (Log.timestamp == subquery.c.max_timestamp)
-    ).filter(Log.status == 'entry').distinct().count()
+
+    students_inside = len(get_students_inside())
 
     # Render the template with the additional student_result context (if any)
     return render_template('app2/security.html', 
@@ -154,11 +212,10 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    subquery = db.session.query(Log.student_id, func.max(Log.timestamp).label('latest')).group_by(Log.student_id).subquery()
-    inside_count = db.session.query(Log).join(subquery, (Log.student_id == subquery.c.student_id) & (Log.timestamp == subquery.c.latest)).filter(Log.status == 'entry').count()
-
-
-    return render_template('app2/dashboard.html', role=current_user.role, inside_count=inside_count, username=current_user.username)
+    # Get all students in latest order
+    students = get_students_inside()[::-1]
+    inside_count = len(students)
+    return render_template('app2/dashboard.html', role=current_user.role, inside_count=inside_count, students = students, username=current_user.username)
 
 ## Log Entry (alternative entry point)
 @app.route('/log_entry', methods=['POST'])
