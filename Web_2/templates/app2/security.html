@@ -65,7 +65,7 @@
                             <tr>
                                 <td>{{ student_result.name }}</td>
                                 <td>{{ student_result.enrollment_number }}</td>
-                                <td>{{ student_result.timestamp }}</td>
+                                <td>{{ student_result.timestamp.strftime('%H:%M:%S | %d-%m-%Y') }}</td>
                                 <td>{{ student_result.status }}</td>
                             </tr>
                         </tbody>

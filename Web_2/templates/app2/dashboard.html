@@ -11,6 +11,7 @@
     <table>
         <thead>
             <tr>
+                <th class="sno">S.No.</th>
                 <th>Enrollement No.</th>
                 <th>Name</th>
                 <th>Department</th>
@@ -20,9 +21,10 @@
         <tbody>
             {% for student, entry_time in students %}
                 <tr>
+                    <td>{{loop.index}}</td>
                     <td>{{student.enrollment_number}}</td>
                     <td>{{student.name}}</td>
-                    <td>{{student.department}}</td>
+                    <td>{{student.department}} {{student.year}} {{student.section}}</td>
                     <td>{{entry_time.strftime('%H:%M:%S | %d-%m-%Y')}}</td>
                 </tr>
 
