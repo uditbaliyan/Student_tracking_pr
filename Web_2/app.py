@@ -40,19 +40,20 @@ def get_current_time():
 
 
 def get_students_inside():
-    # Subquery to get the latest log entry for each student before the given time
+    # Subquery to get the latest log entry for each student
     latest_logs = db.session.query(
         Log.student_id,
         func.max(Log.timestamp).label('latest_timestamp')
     ).group_by(Log.student_id).subquery()
     
-    # Join with logs to get the status and with students to get their details
-    students_inside = db.session.query(Student).join(
+    # Join with logs to get the status and with students to get their details and timestamp
+    students_inside = db.session.query(Student, Log.timestamp).join(
         Log, Student.student_id == Log.student_id
     ).join(
         latest_logs,
-            (Log.student_id == latest_logs.c.student_id) & (Log.timestamp == latest_logs.c.latest_timestamp)
-        ).filter(Log.status == 'entry').all()
+        (Log.student_id == latest_logs.c.student_id) &
+        (Log.timestamp == latest_logs.c.latest_timestamp)
+    ).filter(Log.status == 'entry').all()
     
     return students_inside
  

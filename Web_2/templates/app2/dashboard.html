@@ -18,12 +18,12 @@
             </tr>
         </thead>
         <tbody>
-            {% for student in students %}
+            {% for student, entry_time in students %}
                 <tr>
                     <td>{{student.enrollment_number}}</td>
                     <td>{{student.name}}</td>
                     <td>{{student.department}}</td>
-                    <td></td>
+                    <td>{{entry_time.strftime('%H:%M:%S | %d-%m-%Y')}}</td>
                 </tr>
 
             {% endfor %}
