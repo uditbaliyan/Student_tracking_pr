@@ -9,6 +9,10 @@ body {
 
 /* Header & Navigation */
 
+.active {
+    color: #16957b; /* or any other style to highlight the active link */
+  }
+
 header {
     background: #2c3e50;
     padding: 15px 0;

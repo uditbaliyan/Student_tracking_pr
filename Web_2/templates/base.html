@@ -13,28 +13,25 @@
 <body>
     <header>
         <nav>
-            {% block navbar %}{% endblock %}
-            <!-- Navigation can be dynamic based on user role -->
-            {% if current_user.is_authenticated and current_user.role == 'admin' %}
-            <a href="{{ url_for('dashboard') }}">Dashboard</a> |
-            <a href="{{ url_for('students') }}">Students</a> |
-            <a href="{{ url_for('upload_csv') }}">Upload CSV</a> |
-            <a href="{{ url_for('analytics') }}">Analytics</a> |
-            {% endif %}
-
-            {% if current_user.is_authenticated %}
-                <a href="{{ url_for('logout') }}">Logout</a>
-            {% endif %}
+          {% block navbar %}{% endblock %}
+          <!-- Navigation can be dynamic based on user role -->
+          {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            <a href="{{ url_for('dashboard') }}" class="{% if request.path == url_for('dashboard') %}active{% endif %}">Dashboard</a> |
+            <a href="{{ url_for('students') }}" class="{% if request.path == url_for('students') %}active{% endif %}">Students</a> |
+            <a href="{{ url_for('upload_csv') }}" class="{% if request.path == url_for('upload_csv') %}active{% endif %}">Upload CSV</a> |
+            <a href="{{ url_for('analytics') }}" class="{% if request.path == url_for('analytics') %}active{% endif %}">Analytics</a> |
+          {% endif %}
+      
+          {% if current_user.is_authenticated %}
+            <a href="{{ url_for('logout') }}">Logout</a>
+          {% endif %}
         </nav>
-    </header>
+      </header>
+      
     <main>
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Removing footer for now -->
-    <!-- <footer>
-        <p>&copy; 2025 Student Tracking System</p>
-    </footer> -->
 </body>
 {% block js %}
 {% endblock %}
