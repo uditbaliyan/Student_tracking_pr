@@ -7,115 +7,232 @@
 {% block navbar %} <a href="{{url_for('login')}}">Login</a>{% endblock %}
 
 {% block content %}
-    <div class="container">
 
-        <!-- Date and Time Display -->
-        <div class="date-time">
-            <div id="date"></div>
-            <div id="clock"></div>
+<div class="container">
+    <div class="date-time">
+        <div id="date"></div>
+        <div id="clock"></div>
+    </div>
+
+    <div class="mt-2">
+        {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+        <div id="socket-message-area"></div>
+        <div id="error-message"></div> </div>
+
+    <div class="cards">
+        <div class="card entry-exit">
+            <div class="card-header">
+                <h4><i class="fas fa-sign-in-alt"></i> Entry/Exit Log</h4>
+            </div>
+            <div class="card-body">
+                
+                <input type="text" id="enrollment_input" placeholder="Scan Enrollment Number" required autofocus>
+                <button type="button" onclick="sendData()"><i class="fas fa-paper-plane"></i> Submit</button> </div>
         </div>
 
-                <!-- Flash Messages -->
-                <div class="mt-2">
-                    {% with messages = get_flashed_messages(with_categories=True) %}
-                    {% if messages %}
-                    {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    {% endfor %}
-                    {% endif %}
-                    {% endwith %}
-                </div>
-        <!-- Entry/Exit Form and Student Details -->
-        <div class="cards">
-            <!-- Entry/Exit Form -->
-            <div class="card entry-exit">
-                <div class="card-header">
-                    <h4><i class="fas fa-sign-in-alt"></i> Entry/Exit Log</h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('security_view') }}" autocomplete="off">
-                        <input type="text" name="enrollment" placeholder="Scan Enrollment Number" required autofocus>
-                        <button type="submit"><i class="fas fa-paper-plane"></i> Submit</button>
-                    </form>
-                </div>
+        <div class="card student-details">
+            <div class="card-header">
+                <h4><i class="fas fa-user"></i> Last Scan Details</h4>
             </div>
-
-            <!-- Student Details -->
-            <div class="card student-details">
-                <div class="card-header">
-                    <h4><i class="fas fa-user"></i> Student Details</h4>
-                </div>
-                <div class="card-body">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Student Name</th>
-                                <th>Enrollment No.</th>
-                                <th>Date & Time</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        {% if student_result %}
-                        <tbody>
-                            <tr>
-                                <td>{{ student_result.name }}</td>
-                                <td>{{ student_result.enrollment_number }}</td>
-                                <td>{{ student_result.timestamp.strftime('%H:%M:%S | %d-%m-%Y') }}</td>
-                                <td>{{ student_result.status }}</td>
-                            </tr>
-                        </tbody>
-                        {% endif %}
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Students Inside Count -->
-        <div class="students-inside">
-            <div class="card">
-                <div class="card-body">
-                    <h5><i class="fas fa-users"></i> Students Currently Inside: {{ students_inside }}</h5>
-                </div>
+            <div class="card-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Enrollment No.</th>
+                            <th>Date & Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td id="student-name">--</td>
+                            <td id="student-enrollment_no">--</td>
+                            <td id="student-entry-exit-time">--</td>
+                            <td id="student-status">--</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-
-
-
-
+    <div class="students-inside">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-users"></i> Students Currently Inside: <span id="student_count">Loading...</span></h5>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
 {% block js %}
-    <!-- Custom JavaScript -->
-    <script>
-        function updateDateTime() {
-            const now = new Date();
-            const dateString = now.toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-            const timeString = now.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-            document.getElementById('date').textContent = dateString;
-            document.getElementById('clock').textContent = timeString;
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+<script>
+    // --- Date/Time Update Function ---
+    function updateDateTime() {
+        const now = new Date();
+        const dateString = now.toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const timeString = now.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+        });
+        document.getElementById('date').textContent = dateString;
+        document.getElementById('clock').textContent = timeString;
+    }
+    updateDateTime(); // Initial call
+    setInterval(updateDateTime, 1000); // Update every second
+
+    // --- DOM Element References ---
+    const enrollmentInput = document.getElementById('enrollment_input');
+    const studentNameTd = document.getElementById('student-name');
+    const studentEnrollmentTd = document.getElementById('student-enrollment_no');
+    const studentTimeTd = document.getElementById('student-entry-exit-time');
+    const studentStatusTd = document.getElementById('student-status');
+    const studentCountSpan = document.getElementById('student_count');
+    const errorMessageDiv = document.getElementById('error-message');
+    const socketMessageDiv = document.getElementById('socket-message-area');
+
+    // --- SocketIO Connection ---
+    // Ensure the connection URL is correct, especially if Flask runs on a different port/host
+    const socket = io.connect(window.location.origin); // Connects to the same host/port
+
+    socket.on('connect', () => {
+        console.log('Socket.IO connected successfully!');
+        errorMessageDiv.textContent = ""
+    });
+
+    socket.on('disconnect', () => {
+        console.warn('Socket.IO disconnected.');
+        errorMessageDiv.textContent = 'Disconnected from server. Trying to reconnect...';
+    });
+
+    socket.on('connect_error', (err) => {
+        console.error('Socket.IO connection error:', err);
+        errorMessageDiv.textContent = `Connection Error: ${err.message}. Please check server.`;
+    });
+
+
+    // --- Function to Send Enrollment Data ---
+    function sendData() {
+        const enrollValue = enrollmentInput.value.trim(); // Trim whitespace
+        if (enrollValue) {
+            console.log("Sending enrollment:", enrollValue); // Debug log
+            // Use socket.emit to pass enrollValue to flask app
+            socket.emit("enrollment_no_entered", enrollValue);
+            enrollmentInput.value = ""; // Clear input after sending
+            errorMessageDiv.textContent = ""; // Clear previous errors
+            socketMessageDiv.textContent = ""; // Clear previous messages
+        } else {
+            console.log("Enrollment input is empty.");
+            errorMessageDiv.textContent = "Please enter an enrollment number.";
+        }
+    }
+
+    // Add event listener for 'Enter' key in the input field
+    enrollmentInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            sendData();
+        }
+    });
+
+    // --- Function to Update Student Details Table ---
+    function updateStudentDetails(data) {
+        studentNameTd.textContent = data.name || '--';
+        studentEnrollmentTd.textContent = data.enrollment_number || '--';
+
+        // Format timestamp nicely
+        if (data.timestamp) {
+            try {
+                const date = new Date(data.timestamp);
+                 // Example format: Apr 03, 2025, 06:45:30 PM
+                studentTimeTd.textContent = date.toLocaleString('en-US', {
+                    year: 'numeric', month: 'numeric', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+                });
+            } catch (e) {
+                 console.error("Error parsing timestamp:", e);
+                 studentTimeTd.textContent = data.timestamp; // Fallback to raw string
+            }
+        } else {
+            studentTimeTd.textContent = '--';
         }
 
-        // Initial call and update every second
-        updateDateTime();
-        setInterval(updateDateTime, 1000);
-    </script>
+        // Update status with styling
+        studentStatusTd.textContent = data.status ? data.status.toUpperCase() : '--';
+        studentStatusTd.className = data.status ? `status-${data.status}` : ''; // Add class for styling
+    }
 
+     // --- Function to Clear Student Details Table ---
+     function clearStudentDetails() {
+        studentNameTd.textContent = '--';
+        studentEnrollmentTd.textContent = '--';
+        studentTimeTd.textContent = '--';
+        studentStatusTd.textContent = '--';
+        studentStatusTd.className = '';
+    }
+
+    // --- SocketIO Event Handlers ---
+    // We have 4 such events -> for error, for updating student data, 
+    // for updating student count and for exiting all students
+
+    // Handles updates for a specific student scan
+    socket.on("update_student_data", function(data) {
+        console.log("Received student data:", data); // Debug log
+        errorMessageDiv.textContent = ""; // Clear any previous error
+        updateStudentDetails(data);
+        // The count is often included here, update it too
+        if (data.students_inside !== undefined) {
+             studentCountSpan.textContent = data.students_inside;
+        }
+    });
+
+    // Handles updates to the total count (can be sent separately or with student data)
+    socket.on("update_student_count", function(data) {
+        console.log("Received student count update:", data); // Debug log
+        if (data.students_inside !== undefined) {
+             studentCountSpan.textContent = data.students_inside;
+        }
+    });
+
+
+    // Handles error messages from the server
+    socket.on("entry_error", function(data) {
+        console.error("Received error:", data.message); // Debug log
+        errorMessageDiv.textContent = data.message || "An unknown error occurred.";
+        clearStudentDetails(); // Clear details on error
+    });
+
+     // Handles confirmation after forcing all students out
+    socket.on("exiting_all_processed", function(data) {
+        console.log("Received exiting_all_processed:", data); // Debug log
+        // Display a temporary message
+        socketMessageDiv.innerHTML = `<div class="alert alert-warning">${data.message || 'All students marked as exited.'}</div>`;
+        clearStudentDetails(); // Clear the last scanned student details
+        studentCountSpan.textContent = 0; // Count is now 0
+        // Optional: Clear the message after a few seconds
+        setTimeout(() => { socketMessageDiv.innerHTML = ''; }, 5000);
+    });
+
+    // --- Initial Focus ---
+    enrollmentInput.focus(); // Set focus to the input field on page load
+
+</script>
 {% endblock %}

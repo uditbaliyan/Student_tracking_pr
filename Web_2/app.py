@@ -10,6 +10,8 @@ import os
 import plotly.express as px
 import pandas as pd
 from werkzeug.utils import secure_filename
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
 
 
 import os
@@ -32,6 +34,9 @@ bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+
+CORS(app, resources={r"/*": {"origins": "*"}}) # For regular HTTP routes if needed
+socketio = SocketIO(app, cors_allowed_origins="*") # Critical for SocketIO connections
 
 ## Important functions 
 
@@ -136,53 +141,88 @@ def load_user(user_id):
 
 # Routes
 ## Security View
-@app.route('/security', methods=['GET', 'POST'])
+@app.route('/security')
 def security_view():
-    student_result = None  # Initialize to None; used for displaying scan results in the template
-    
-    if request.method == 'POST':
-        enrollment_number = request.form.get('enrollment').lstrip("0")
+    return render_template('app2/security.html')
 
-        # Marking all students as exited when secret code is entered
+# Socket connection for security page
+@socketio.on("enrollment_no_entered")
+def handle_students(enrollment_number_str):
+    enrollment_number = enrollment_number_str.strip().lstrip("0")
+
+    student_result_data = None
+    error_message = None
+    students_inside_count = 0 # Default count
+
+    # Trying database entry
+    try:
         if enrollment_number == secret_force_exit_code:
             exiting_all()
-            return render_template('app2/security.html', 
-                           students_inside=0,)
-        
-        # If normal enrollement number is entered
+            # Emit signal to tell ALL connected clients that all students have left
+            emit("exiting_all_processed", {'message': 'All students marked as exited.'}, broadcast=True)
+            students_inside_count = 0 # Update count after exit
+            # Emit the updated count to the specific client that triggered this
+            emit("update_student_count", {'students_inside': students_inside_count})
+            return # Stop further processing for this event
+
         student = Student.query.filter_by(enrollment_number=enrollment_number).first()
+
         if student:
             # Retrieve the most recent log entry for this student
             last_log = Log.query.filter_by(student_id=student.student_id)\
-                        .order_by(Log.timestamp.desc())\
-                        .first()
-            
-            # Toggle status: if last log was an entry, mark as exit; otherwise, mark as entry.
+                              .order_by(Log.timestamp.desc())\
+                              .first()
+
+            # Toggle status
             new_status = 'exit' if last_log and last_log.status == 'entry' else 'entry'
-            
+
             # Create a new log record.
-            new_log = Log(student_id=student.student_id, status=new_status, timestamp = get_current_time())
+            new_log = Log(
+                student_id=student.student_id,
+                status=new_status,
+                timestamp=get_current_time() # Use your function
+            )
             db.session.add(new_log)
             db.session.commit()
 
-            # Prepare scan result data to be displayed on the dashboard
-            student_result = {
-                'name': student.name,  # Assumes the Student model has a 'name' attribute
+            students_inside_count = len(get_students_inside())
+
+            timestamp_str = new_log.timestamp.isoformat() if new_log.timestamp else None
+
+            student_result_data = {
+                'name': student.name,
                 'enrollment_number': student.enrollment_number,
-                'timestamp': new_log.timestamp,  # Automatically set current date & time
-                'status': new_status
+                'timestamp': timestamp_str,
+                'status': new_status,
+                'students_inside': students_inside_count # Include the latest count
             }
+            # Emit the specific student data AND the updated count
+            emit("update_student_data", student_result_data, broadcast=True)
+
         else:
-            flash('Invalid enrollment number', category="danger")
+            print(f"Invalid enrollment number: {enrollment_number}")
+            error_message = f"Invalid enrollment number: {enrollment_number}"
+            # Emit error back to the specific client
+            emit("entry_error", {'message': error_message})
+            # Still emit the current count even on error
+            students_inside_count = len(get_students_inside())
+            emit("update_student_count", {'students_inside': students_inside_count})
 
 
-    students_inside = len(get_students_inside())
-
-    # Render the template with the additional student_result context (if any)
-    return render_template('app2/security.html', 
-                           students_inside=students_inside, 
-                           username="Security", 
-                           student_result=student_result)
+    except Exception as e:
+        db.session.rollback() # Rollback in case of error during DB operations
+        print(f"Error handling enrollment: {e}")
+        error_message = "An internal error occurred."
+         # Emit error back to the specific client
+        emit("entry_error", {'message': error_message})
+        # Try to get count even on error, might still be useful
+        try:
+             students_inside_count = len(get_students_inside())
+             emit("update_student_count", {'students_inside': students_inside_count})
+        except Exception:
+             # If getting count fails too, emit 0 
+             emit("update_student_count", {'students_inside': 'Error'})
+   
 
 ## Home Route
 @app.route('/')
@@ -509,4 +549,5 @@ def analytics():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    # app.run(debug=True)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)

@@ -24,6 +24,14 @@ body {
     justify-content: space-between;
     margin-bottom: 20px;
 }
+
+#error-message {
+    color: red;
+    margin-top: 10px;
+    font-weight: bold;
+    min-height: 1.2em; /* Prevent layout shift */
+}
+
 .card {
     border: 1px solid gray;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -43,7 +51,8 @@ body {
 .card-body {
     padding: 20px;
 }
-form input {
+
+.card-body input {
     width: 100%;
     padding: 10px;
     margin-bottom: 10px;
@@ -51,7 +60,8 @@ form input {
     background-color: white;
     box-sizing: border-box;
 }
-form button {
+
+.card-body button {
     width: 100%;
     padding: 10px;
     background-color: #007bff;
@@ -60,6 +70,14 @@ form button {
     border-radius: 5px;
     cursor: pointer;
 }
+
+.status-entry { 
+    color: green; font-weight: bold; 
+}
+.status-exit { 
+    color: orange; font-weight: bold;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
