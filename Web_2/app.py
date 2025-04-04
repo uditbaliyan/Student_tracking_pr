@@ -13,9 +13,6 @@ from werkzeug.utils import secure_filename
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 
-
-import os
-
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 
@@ -27,7 +24,7 @@ app.config['BACKUP_FOLDER'] = 'backups'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB limit for uploads
 
 # When this code is entered instead of enrollement number, all students are marked as exit (who are currently inside)
-secret_force_exit_code = "787898"
+SECRET_FORCE_EXIT_CODE = "787898"
 
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
@@ -38,8 +35,8 @@ login_manager.login_view = 'login'
 CORS(app, resources={r"/*": {"origins": "*"}}) # For regular HTTP routes if needed
 socketio = SocketIO(app, cors_allowed_origins="*") # Critical for SocketIO connections
 
-## Important functions 
 
+## Important functions 
 def get_current_time():
     return (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).replace(microsecond=0)
 
@@ -94,7 +91,6 @@ def exiting_all():
     db.session.commit()
 
 
-
 # Database Models
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -105,6 +101,7 @@ class User(UserMixin, db.Model):
 
     def get_id(self):
         return str(self.user_id)
+
 
 class Student(db.Model):
     __tablename__ = 'students'
@@ -123,6 +120,7 @@ class Student(db.Model):
     # Return the username as the unique identifier
         return self.student_id
 
+
 class Log(db.Model):
     __tablename__ = 'logs'
     log_id = db.Column(db.Integer, primary_key=True)
@@ -133,6 +131,7 @@ class Log(db.Model):
     def get_id(self):
         # Return the id as the unique identifier
         return self.log_id
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -156,7 +155,7 @@ def handle_students(enrollment_number_str):
 
     # Trying database entry
     try:
-        if enrollment_number == secret_force_exit_code:
+        if enrollment_number == SECRET_FORCE_EXIT_CODE:
             exiting_all()
             # Emit signal to tell ALL connected clients that all students have left
             emit("exiting_all_processed", {'message': 'All students marked as exited.'}, broadcast=True)
@@ -172,6 +171,10 @@ def handle_students(enrollment_number_str):
             last_log = Log.query.filter_by(student_id=student.student_id)\
                               .order_by(Log.timestamp.desc())\
                               .first()
+            
+            # cooldown time, so that quick scan do not mark log incorrectly
+            if (get_current_time().replace(tzinfo=None) - last_log.timestamp).seconds < 2:
+                return
 
             # Toggle status
             new_status = 'exit' if last_log and last_log.status == 'entry' else 'entry'
@@ -180,7 +183,7 @@ def handle_students(enrollment_number_str):
             new_log = Log(
                 student_id=student.student_id,
                 status=new_status,
-                timestamp=get_current_time() # Use your function
+                timestamp=get_current_time()
             )
             db.session.add(new_log)
             db.session.commit()
