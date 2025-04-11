@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+
+{% block content %}
+
+<p> {{students_inside}} </p>
+
+{% for student in students %}
+    <p>{{student.batch}}</p>
+{% endfor %}
+
+{% endblock %}

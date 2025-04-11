@@ -40,7 +40,7 @@ socketio = SocketIO(app, cors_allowed_origins="*") # Critical for SocketIO conne
 def get_current_time():
     return (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).replace(microsecond=0)
 
-
+## return subquery of all students who are inside the college
 def get_students_inside():
     # Subquery to get the latest log entry for each student
     latest_logs = db.session.query(
@@ -49,16 +49,25 @@ def get_students_inside():
     ).group_by(Log.student_id).subquery()
     
     # Join with logs to get the status and with students to get their details and timestamp
-    students_inside = db.session.query(Student, Log.timestamp).join(
+    students_inside = db.session.query(Student).join(
         Log, Student.student_id == Log.student_id
     ).join(
         latest_logs,
         (Log.student_id == latest_logs.c.student_id) &
         (Log.timestamp == latest_logs.c.latest_timestamp)
-    ).filter(Log.status == 'entry').all()
+    ).filter(Log.status == 'entry')
     
     return students_inside
  
+
+## Current student data with log time
+def get_students_inside_with_logtime():
+    students_inside_with_logtime = get_students_inside().with_entities(
+        Student, Log.timestamp
+        ).all()
+    
+    return students_inside_with_logtime
+
 
 # Pushing all students out
 def exiting_all():
@@ -173,7 +182,7 @@ def handle_students(enrollment_number_str):
                               .first()
             
             # cooldown time, so that quick scan do not mark log incorrectly
-            if (get_current_time().replace(tzinfo=None) - last_log.timestamp).seconds < 2:
+            if last_log != None and (get_current_time().replace(tzinfo=None) - last_log.timestamp).seconds < 2:
                 return
 
             # Toggle status
@@ -188,7 +197,7 @@ def handle_students(enrollment_number_str):
             db.session.add(new_log)
             db.session.commit()
 
-            students_inside_count = len(get_students_inside())
+            students_inside_count = get_students_inside().count()
 
             timestamp_str = new_log.timestamp.isoformat() if new_log.timestamp else None
 
@@ -208,7 +217,7 @@ def handle_students(enrollment_number_str):
             # Emit error back to the specific client
             emit("entry_error", {'message': error_message})
             # Still emit the current count even on error
-            students_inside_count = len(get_students_inside())
+            students_inside_count = get_students_inside().count()
             emit("update_student_count", {'students_inside': students_inside_count})
 
 
@@ -220,7 +229,7 @@ def handle_students(enrollment_number_str):
         emit("entry_error", {'message': error_message})
         # Try to get count even on error, might still be useful
         try:
-             students_inside_count = len(get_students_inside())
+             students_inside_count = get_students_inside().count()
              emit("update_student_count", {'students_inside': students_inside_count})
         except Exception:
              # If getting count fails too, emit 0 
@@ -257,7 +266,7 @@ def logout():
 @login_required
 def dashboard():
     # Get all students in latest order
-    students = get_students_inside()[::-1]
+    students = get_students_inside_with_logtime()[::-1]
     inside_count = len(students)
     return render_template('app2/dashboard.html', role=current_user.role, inside_count=inside_count, students = students, username=current_user.username)
 
@@ -473,18 +482,7 @@ def analytics():
 
 
     # Students Currently Inside (not affected by date filters)
-    subquery = db.session.query(Log.student_id, func.max(Log.timestamp).label('latest')).group_by(Log.student_id).subquery()
-    students_inside = db.session.query(Log).join(subquery, (Log.student_id == subquery.c.student_id) & (Log.timestamp == subquery.c.latest)).filter(Log.status == 'entry').count()
-
-    # Frequent Visitors
-    frequent_visitors = db.session.query(
-        Student.enrollment_number.label('enrollment'),
-        func.count(Log.log_id).label('visit_count')
-    ).join(Student, Log.student_id == Student.student_id)\
-    .filter(Log.status == 'entry')\
-    .group_by(Student.enrollment_number)\
-    .order_by(desc('visit_count'))\
-    .limit(5).all()
+    students_inside = get_students_inside().count()
 
     # Hourly Activity Chart
     hour_col = func.strftime('%H', Log.timestamp).label('hour')
@@ -531,7 +529,6 @@ def analytics():
         total_exits=total_exits,
         unique_students=unique_students,
         students_inside=students_inside,
-        frequent_visitors=frequent_visitors,
         plot_hourly=plot_hourly,
         plot_daily=plot_daily,
         plot_pie=plot_pie,
@@ -547,6 +544,68 @@ def analytics():
         selected_start_date=start_date_str,
         selected_end_date=end_date_str
     )
+
+
+## 
+def get_students_by_year(sem = None, depart = None):
+    query = get_students_inside()
+    
+    if sem != None:
+        query = query.filter(Student.semester.ilike(f"%{sem}%"))
+    
+    if depart != None:
+        query = query.filter(Student.department.ilike(f"%{depart}%"))
+    
+    return query
+
+
+
+## Getting filted query -> Time period, Depart, semester, etc.
+def get_filtered_data(start_date=None, end_date=None, sem=None, depart=None, section=None):
+        
+    if start_date == None:
+        return get_students_inside_with_logtime()
+
+    if end_date == None:
+        # if no end date, set today as end day
+        end_date = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).date()
+    
+    if start_date > end_date:
+        print("Wrong time period entered")
+        return []
+
+    log_in_range = db.session.query(Log).filter(
+        Log.timestamp >= start_date, Log.timestamp <= end_date
+        ).subquery()
+    
+    query = db.session.query(Student, log_in_range.c.timestamp, log_in_range.c.status
+        ).join( Student, log_in_range.c.student_id == Student.student_id)
+    
+    if depart != None:
+        query = query.filter(Student.department.ilike(f"%{depart}%"))
+    
+    if sem != None:
+        query = query.filter(Student.semester.ilike(f"%{sem}%"))
+
+    if section != None:
+        query = query.filter(Student.section.ilike(f"%{section}%"))
+    
+    query = query.order_by(log_in_range.c.timestamp).all()
+
+    return query
+
+
+@app.route("/new_analytics")
+def better_analytics():
+    st_inside = get_students_inside().count()
+
+    startdate = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30) - timedelta(days=5)).date()
+    x = get_filtered_data(start_date= startdate, depart="BCA", sem=2, section="B")
+
+    for st in x:
+        print(st[0].name)
+
+    return render_template('app2/new_analytics.html', students_inside = st_inside)
 
 # Run the App
 if __name__ == '__main__':

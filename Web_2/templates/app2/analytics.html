@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block css %}
   <!-- Google Fonts for a modern look -->
-  <!-- <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"> -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
 {% endblock %}
 {% block content %}
@@ -80,16 +79,6 @@
       <p>{{ students_inside }}</p>
     </div>
   </div>
-
-  <!-- Frequent Visitors -->
-  <section class="frequent-visitors">
-    <h2>Top 5 Frequent Visitors</h2>
-    <ul>
-      {% for visitor in frequent_visitors %}
-        <li>Enrollment Number: {{ visitor.enrollment }} - Visits: {{ visitor.visit_count }}</li>
-      {% endfor %}
-    </ul>
-  </section>
 
   <!-- Charts Section -->
   <div class="charts">
