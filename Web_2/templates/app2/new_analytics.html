@@ -1,13 +1,50 @@
 {% extends "base.html" %}
-{% block css %}
-{% endblock %}
 
 {% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Today's Attendance Summary</h2>
 
-<p> {{students_inside}} </p>
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Unique Students Today</h5>
+                    <p class="display-5">{{ total_today }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Students Currently Inside</h5>
+                    <p class="display-5">{{ current_inside }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-{% for student in students %}
-    <p>{{student.batch}}</p>
-{% endfor %}
-
+    <h4 class="mt-5">Breakdown by Category</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Department</th>
+                <th>Year</th>
+                <th>Shift</th>
+                <th>Section</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dept, year, shift, section, count in breakdown %}
+            <tr>
+                <td>{{ dept }}</td>
+                <td>{{ year }}</td>
+                <td>{{ shift }}</td>
+                <td>{{ section }}</td>
+                <td>{{ count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

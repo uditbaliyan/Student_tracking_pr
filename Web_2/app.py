@@ -5,13 +5,14 @@ from sqlalchemy import func, and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import func,desc
 from flask_bcrypt import Bcrypt
-from datetime import datetime, timedelta, timezone
+from datetime import datetime,date, timedelta, timezone
 import os
 import plotly.express as px
 import pandas as pd
 from werkzeug.utils import secure_filename
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
+
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -118,12 +119,13 @@ class Student(db.Model):
     name = db.Column(db.String(100), nullable=False)
     enrollment_number = db.Column(db.String(50), unique=True, nullable=False)
     department = db.Column(db.String(50))
+    shift=db.Column(db.String(2), nullable=False)
     year = db.Column(db.Integer)
     batch = db.Column(db.String(50), nullable=False)
     section=db.Column(db.String(2), nullable=False)
     semester = db.Column(db.String(50), nullable=False)
-    phone_no = db.Column(db.String(20), nullable=False)
-    address = db.Column(db.String(200), nullable=False)
+    phone_no = db.Column(db.String(20), nullable=True)
+    address = db.Column(db.String(200), nullable=True)
 
     def get_id(self):
     # Return the username as the unique identifier
@@ -324,7 +326,7 @@ def add_student():
 def validate_csv_data(df):
     """Validates that all required columns exist and contain valid data."""
     
-    required_columns = ['name', 'enrollment_number', 'department', 'batch', 'year', 'semester', 'phone_no', 'address', 'section']
+    required_columns = ['name', 'enrollment_number', 'department', 'batch', 'year', 'semester', 'phone_no', 'address', 'section', 'shift']
     
     # Normalize column names to lowercase and strip whitespace
     df.columns = [col.strip().lower() for col in df.columns]
@@ -343,21 +345,31 @@ def validate_csv_data(df):
 
         # Check for missing or invalid values in required columns
         for col in required_columns:
-            if pd.isna(row[col]) or row[col] == '':
-                flash(f'Missing value in column "{col}" at row {index}', 'danger')
+            if pd.isna(row[col]) or str(row[col]).strip() == '':
+                flash(f'Missing value in column "{col}" at row {index + 2}', 'danger')
                 return False  # Reject entire file if any required value is missing
 
-        # Validate enrollment_number (should be a number)
+        # Validate enrollment_number (should be numeric)
         if not str(row['enrollment_number']).isdigit():
-            flash(f'Invalid enrollment number at row {index}', 'danger')
+            flash(f'Invalid enrollment number at row {index + 2}', 'danger')
             return False
         
-        # Validate phone_no (should be a 10-digit number)
-        if not str(row['phone_no']).isdigit() or len(str(row['phone_no'])) != 10:
-            flash(f'Invalid phone number at row {index}', 'danger')
+        # Validate phone_no (should be 10-digit numeric)
+        phone_str = str(row['phone_no']).strip()
+        if not phone_str.isdigit() or len(phone_str) != 10:
+            flash(f'Invalid phone number at row {index + 2}', 'danger')
             return False
 
-    return True  # Data is valid
+        # ✅ Validate shift (must be 'M' or 'E')
+        shift_val = str(row['shift']).strip().upper()
+        if shift_val not in ['M', 'E']:
+            flash(f'Invalid shift "{shift_val}" at row {index + 2} (must be M or E)', 'danger')
+            return False
+        else:
+            # Normalize the value in the DataFrame for consistency
+            df.at[index, 'shift'] = shift_val
+
+    return True  # ✅ All checks passed
 
 def process_csv(file_path):
     """Reads CSV, validates data, and inserts into database if all rows are valid."""
@@ -382,6 +394,7 @@ def process_csv(file_path):
                     phone_no=row['phone_no'],
                     address=row['address'],
                     section=row['section'],
+                    shift=row['shift']
                 )
                 db.session.add(new_student)
             else:
@@ -445,20 +458,29 @@ def upload_csv():
     return render_template('app2/upload_csv.html', role=current_user.role)
 
 
-@app.route('/analytics')
+@app.route('/analytics', methods=['GET'])
 @login_required
 def analytics():
-    # Get filter parameters
+    # Filter dropdowns
+    batches = [b[0] for b in db.session.query(Student.batch).distinct().all() if b[0]]
+    semesters = [s[0] for s in db.session.query(Student.semester).distinct().all() if s[0]]
+    sections = [s[0] for s in db.session.query(Student.section).distinct().all() if s[0]]
+    years = [s[0] for s in db.session.query(Student.year).distinct().all() if s[0]]
+
+    # GET query parameters
     batch = request.args.get('batch')
     semester = request.args.get('semester')
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
+    section = request.args.get('section')
+    year = request.args.get('year')
+    student_id = request.args.get('student_id')
+
+    # Convert dates
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d') if start_date_str else None
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1) if end_date_str else None
-    section=request.args.get('section')
-    year=request.args.get('year')
 
-    # Base Queries with Filters
+    # Base query
     base_query = db.session.query(Log).join(Student, Student.student_id == Log.student_id)
     if batch:
         base_query = base_query.filter(Student.batch == batch)
@@ -473,55 +495,82 @@ def analytics():
     if end_date:
         base_query = base_query.filter(Log.timestamp < end_date)
 
-    # Total Entries and Exits
     total_entries = base_query.filter(Log.status == 'entry').count()
     total_exits = base_query.filter(Log.status == 'exit').count()
-
-    # Unique Students
     unique_students = db.session.query(Log.student_id).distinct().count()
-
-
-    # Students Currently Inside (not affected by date filters)
     students_inside = get_students_inside().count()
 
-    # Hourly Activity Chart
+    # Hourly and Daily plots
     hour_col = func.strftime('%H', Log.timestamp).label('hour')
-    hourly_data = base_query.group_by(hour_col, Log.status).with_entities(hour_col, Log.status, func.count().label('count')).all()
-    df_hourly = pd.DataFrame(hourly_data, columns=['hour', 'status', 'count'])
-    plot_hourly = px.bar(df_hourly, x='hour', y='count', color='status', title="Hourly Activity").to_html(full_html=False) if not df_hourly.empty else "<p>No data</p>"
-
-    # Daily Activity Chart
     date_col = func.date(Log.timestamp).label('date')
-    daily_data = base_query.group_by(date_col, Log.status).with_entities(date_col, Log.status, func.count().label('count')).all()
-    df_daily = pd.DataFrame(daily_data, columns=['date', 'status', 'count'])
+    df_hourly = pd.DataFrame(base_query.group_by(hour_col, Log.status).with_entities(hour_col, Log.status, func.count()).all(), columns=['hour', 'status', 'count'])
+    df_daily = pd.DataFrame(base_query.group_by(date_col, Log.status).with_entities(date_col, Log.status, func.count()).all(), columns=['date', 'status', 'count'])
+
+    plot_hourly = px.bar(df_hourly, x='hour', y='count', color='status', title="Hourly Activity").to_html(full_html=False) if not df_hourly.empty else "<p>No data</p>"
     plot_daily = px.line(df_daily, x='date', y='count', color='status', title="Daily Activity").to_html(full_html=False) if not df_daily.empty else "<p>No data</p>"
 
-    # Entry vs Exit Pie Chart
-    status_counts = base_query.group_by(Log.status).with_entities(Log.status, func.count().label('count')).all()
-    df_status = pd.DataFrame(status_counts, columns=['status', 'count'])
+    # Pie Chart
+    df_status = pd.DataFrame(base_query.group_by(Log.status).with_entities(Log.status, func.count()).all(), columns=['status', 'count'])
     plot_pie = px.pie(df_status, names='status', values='count', title="Entry vs Exit").to_html(full_html=False) if not df_status.empty else "<p>No data</p>"
 
-    # Monthly Trends
+    # Monthly
     month_col = func.strftime('%Y-%m', Log.timestamp).label('month')
-    monthly_trends = base_query.filter(Log.status == 'entry').group_by(month_col).with_entities(month_col, func.count().label('count')).all()
-    df_monthly = pd.DataFrame(monthly_trends, columns=['month', 'count'])
+    df_monthly = pd.DataFrame(
+        base_query.filter(Log.status == 'entry').group_by(month_col).with_entities(month_col, func.count()).all(),
+        columns=['month', 'count']
+    )
     plot_monthly = px.bar(df_monthly, x='month', y='count', title="Monthly Attendance Trends").to_html(full_html=False) if not df_monthly.empty else "<p>No data</p>"
 
-    # Batch Comparison
-    batch_comparison = db.session.query(Student.batch, func.count(Log.log_id).label('attendance_count')).join(Log, Student.student_id == Log.student_id).filter(Log.status == 'entry')
+    # Batch-wise
+    batch_query = db.session.query(Student.batch, func.count(Log.log_id)).join(Log, Student.student_id == Log.student_id).filter(Log.status == 'entry')
     if start_date:
-        batch_comparison = batch_comparison.filter(Log.timestamp >= start_date)
+        batch_query = batch_query.filter(Log.timestamp >= start_date)
     if end_date:
-        batch_comparison = batch_comparison.filter(Log.timestamp < end_date)
-    batch_comparison = batch_comparison.group_by(Student.batch).all()
-    df_batch = pd.DataFrame(batch_comparison, columns=['batch', 'attendance_count'])
+        batch_query = batch_query.filter(Log.timestamp < end_date)
+    df_batch = pd.DataFrame(batch_query.group_by(Student.batch).all(), columns=['batch', 'attendance_count'])
     plot_batch = px.bar(df_batch, x='batch', y='attendance_count', title="Attendance by Batch").to_html(full_html=False) if not df_batch.empty else "<p>No data</p>"
 
-    # Filter Options
-    batches = [b[0] for b in db.session.query(Student.batch).distinct().all() if b[0]]
-    semesters = [s[0] for s in db.session.query(Student.semester).distinct().all() if s[0]]
-    sections = [s[0] for s in db.session.query(Student.section).distinct().all() if s[0]]
-    years = [s[0] for s in db.session.query(Student.year).distinct().all() if s[0]]
+    # GitHub-style calendar heatmap using Plotly
+    student_heatmap = None
+    if student_id:
+        student_logs = db.session.query(func.date(Log.timestamp).label('date')).filter(
+            Log.student_id == student_id, Log.status == 'entry'
+        )
+        if start_date:
+            student_logs = student_logs.filter(Log.timestamp >= start_date)
+        if end_date:
+            student_logs = student_logs.filter(Log.timestamp < end_date)
+
+        log_dates = [row.date for row in student_logs.all()]
+        df = pd.Series(1, index=pd.to_datetime(log_dates)).groupby(level=0).count()
+        df = df.reindex(pd.date_range(start=start_date or '2024-01-01', end=end_date or datetime.today()), fill_value=0)
+        
+        calendar_df = pd.DataFrame({
+            'date': df.index,
+            'count': df.values,
+            'weekday': df.index.weekday,
+            'week': df.index.isocalendar().week,
+            'month': df.index.month_name(),
+            'year': df.index.year,
+        })
+
+        # Fix for week 1 of next year appearing at the end
+        calendar_df['week'] = calendar_df['week'].apply(lambda x: x if x != 1 or calendar_df['date'].dt.month.iloc[0] == 1 else 53)
+
+        fig = px.imshow(
+            calendar_df.pivot(index='weekday', columns='date', values='count').fillna(0),
+            labels=dict(color='Entries'),
+            color_continuous_scale='greens',
+            aspect='auto',
+            title=f"GitHub-style Attendance Heatmap for {student_id}"
+        )
+        fig.update_yaxes(
+            tickvals=list(range(7)),
+            ticktext=['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        )
+        fig.update_xaxes(visible=False)
+
+        student_heatmap = fig.to_html(full_html=False)
 
     return render_template(
         'app2/analytics.html',
@@ -534,15 +583,12 @@ def analytics():
         plot_pie=plot_pie,
         plot_monthly=plot_monthly,
         plot_batch=plot_batch,
+        student_heatmap=student_heatmap,
         role=current_user.role,
         batches=batches,
-        sections=sections,
         semesters=semesters,
+        sections=sections,
         years=years,
-        selected_batch=batch,
-        selected_semester=semester,
-        selected_start_date=start_date_str,
-        selected_end_date=end_date_str
     )
 
 
@@ -595,17 +641,32 @@ def get_filtered_data(start_date=None, end_date=None, sem=None, depart=None, sec
     return query
 
 
-@app.route("/new_analytics")
+@app.route("/new_analytics", methods=['GET'])
 def better_analytics():
-    st_inside = get_students_inside().count()
+    today = date.today()
 
-    startdate = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30) - timedelta(days=5)).date()
-    x = get_filtered_data(start_date= startdate, depart="BCA", sem=2, section="B")
+    # Today's data
+    today_start = datetime.combine(today, datetime.min.time())
+    today_end = datetime.combine(today, datetime.max.time())
+    today_logs = db.session.query(Log).filter(Log.timestamp.between(today_start, today_end))
 
-    for st in x:
-        print(st[0].name)
+    total_today = today_logs.filter(Log.status == 'entry').distinct(Log.student_id).count()
+    current_inside = get_students_inside().count()
 
-    return render_template('app2/new_analytics.html', students_inside = st_inside)
+    # Breakdown by category
+    breakdown = db.session.query(
+        Student.department, Student.year, Student.shift, Student.section, func.count(Log.student_id)
+    ).join(Log).filter(Log.timestamp.between(today_start, today_end), Log.status == 'entry').group_by(
+        Student.department, Student.year, Student.shift, Student.section
+    ).all()
+
+    return render_template(
+        'app2/new_analytics.html',
+        total_today=total_today,
+        current_inside=current_inside,
+        breakdown=breakdown
+    )
+
 
 # Run the App
 if __name__ == '__main__':

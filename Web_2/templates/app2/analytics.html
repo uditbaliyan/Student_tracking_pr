@@ -56,9 +56,22 @@
         <label for="end_date">End Date:</label>
         <input type="date" name="end_date" id="end_date" value="{{ selected_end_date }}">
       </div>
+      <div class="form-group">
+        <label for="student_id">Search Student ID:</label>
+        <input type="text" name="student_id" id="student_id" placeholder="Enter Student ID">
+      </div>
+      
     </div>
     <button type="submit" class="btn">Apply Filters</button>
   </form>
+
+  {% if student_heatmap %}
+  <div class="chart">
+    <h2>Student Attendance Heatmap</h2>
+    {{ student_heatmap | safe }}
+  </div>
+  {% endif %}
+  
 
   <!-- Metrics Section -->
   <div class="metrics">
@@ -82,26 +95,36 @@
 
   <!-- Charts Section -->
   <div class="charts">
+    {% if plot_hourly  %}
     <div class="chart">
       <h2>Hourly Activity</h2>
       {{ plot_hourly | safe }}
     </div>
+    {% endif %}
+    {% if plot_daily  %}
     <div class="chart">
       <h2>Daily Activity</h2>
       {{ plot_daily | safe }}
     </div>
+    {% endif %}
+    {% if plot_pie %}
     <div class="chart">
       <h2>Entry vs Exit Distribution</h2>
       {{ plot_pie | safe }}
     </div>
+    {% endif %}
+    {% if plot_monthly %}
     <div class="chart">
       <h2>Monthly Attendance Trends</h2>
       {{ plot_monthly | safe }}
     </div>
+    {% endif %}
+    {% if plot_batch %}
     <div class="chart">
       <h2>Attendance by Batch</h2>
       {{ plot_batch | safe }}
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

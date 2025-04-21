@@ -1,5 +1,6 @@
 .venv
 /.venv
+Web_2/__pycache__/app.cpython-313.pyc
 Web/app.py
 Web/.idea/workspace.xml
 .idea/workspace.xml
@@ -9,3 +10,4 @@ Web/app.py
 Web_2/instance/student_tracking.db
 Web_2/instance/student_tracking.db
 /Web_2/instance
+003_Student_tracking/Web_2/instance/student_tracking.db
