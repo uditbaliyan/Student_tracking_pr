@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+
 {% block css %}
-  <!-- Google Fonts for a modern look -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
 {% endblock %}
+
 {% block content %}
 <div class="dashboard-container">
   <h1>Analytics Dashboard</h1>
@@ -19,6 +20,7 @@
           {% endfor %}
         </select>
       </div>
+
       <div class="form-group">
         <label for="semester">Semester:</label>
         <select name="semester" id="semester">
@@ -28,6 +30,7 @@
           {% endfor %}
         </select>
       </div>
+
       <div class="form-group">
         <label for="year">Year:</label>
         <select name="year" id="year">
@@ -37,6 +40,7 @@
           {% endfor %}
         </select>
       </div>
+
       <div class="form-group">
         <label for="section">Section:</label>
         <select name="section" id="section">
@@ -47,33 +51,43 @@
         </select>
       </div>
     </div>
+
     <div class="form-row">
       <div class="form-group">
         <label for="start_date">Start Date:</label>
         <input type="date" name="start_date" id="start_date" value="{{ selected_start_date }}">
       </div>
+
       <div class="form-group">
         <label for="end_date">End Date:</label>
         <input type="date" name="end_date" id="end_date" value="{{ selected_end_date }}">
       </div>
+
       <div class="form-group">
         <label for="student_id">Search Student ID:</label>
-        <input type="text" name="student_id" id="student_id" placeholder="Enter Student ID">
+        <input type="text" name="student_id" id="student_id" placeholder="Enter Student ID" value="{{ selected_student_id }}">
       </div>
-      
     </div>
+
     <button type="submit" class="btn">Apply Filters</button>
   </form>
 
-  {% if student_heatmap %}
-  <div class="chart">
-    <h2>Student Attendance Heatmap</h2>
-    {{ student_heatmap | safe }}
+<!-- GitHub Heatmap Section -->
+<div class="chart">
+  <h2>Student Attendance Heatmap</h2>
+  <div id="student-heatmap">
+    {% if not selected_student_id %}
+      <p>Search for a student ID to view attendance heatmap.</p>
+    {% elif student_heatmap and student_heatmap|length > 0 %}
+      <!-- Heatmap will be rendered by JS -->
+    {% else %}
+      <p>No attendance data found.</p>
+    {% endif %}
   </div>
-  {% endif %}
-  
+</div>
 
-  <!-- Metrics Section -->
+
+  <!-- Metrics -->
   <div class="metrics">
     <div class="metric-card">
       <h3>Total Entries</h3>
@@ -93,32 +107,36 @@
     </div>
   </div>
 
-  <!-- Charts Section -->
+  <!-- Charts -->
   <div class="charts">
-    {% if plot_hourly  %}
+    {% if plot_hourly %}
     <div class="chart">
       <h2>Hourly Activity</h2>
       {{ plot_hourly | safe }}
     </div>
     {% endif %}
-    {% if plot_daily  %}
+
+    {% if plot_daily %}
     <div class="chart">
       <h2>Daily Activity</h2>
       {{ plot_daily | safe }}
     </div>
     {% endif %}
+
     {% if plot_pie %}
     <div class="chart">
       <h2>Entry vs Exit Distribution</h2>
       {{ plot_pie | safe }}
     </div>
     {% endif %}
+
     {% if plot_monthly %}
     <div class="chart">
       <h2>Monthly Attendance Trends</h2>
       {{ plot_monthly | safe }}
     </div>
     {% endif %}
+
     {% if plot_batch %}
     <div class="chart">
       <h2>Attendance by Batch</h2>
@@ -128,3 +146,53 @@
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+function renderStudentHeatmap(data, studentId) {
+  const df = data.map(d => ({
+    date: new Date(d.date),
+    count: d.count,
+    day: new Date(d.date).getDay(),
+    week: getISOWeek(new Date(d.date))
+  }));
+
+  const weeks = [...new Set(df.map(d => d.week))].sort((a, b) => a - b);
+  const heatmap = Array(7).fill().map(() => Array(weeks.length).fill(0));
+
+  df.forEach(({ day, week, count }) => {
+    const row = (day + 6) % 7;
+    const col = weeks.indexOf(week);
+    heatmap[row][col] = count;
+  });
+
+  Plotly.newPlot('student-heatmap', [{
+    z: heatmap,
+    x: weeks,
+    y: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    type: 'heatmap',
+    colorscale: 'Greens',
+    hovertemplate: 'Week %{x}, %{y}<br>Entries: %{z}<extra></extra>',
+    showscale: true
+  }], {
+    title: `GitHub-style Attendance Heatmap for ${studentId}`,
+    xaxis: { title: "Week Number" },
+    yaxis: { autorange: "reversed" }
+  });
+}
+
+function getISOWeek(date) {
+  const tmp = new Date(date.getTime());
+  tmp.setHours(0, 0, 0, 0);
+  tmp.setDate(tmp.getDate() + 3 - (tmp.getDay() + 6) % 7);
+  const week1 = new Date(tmp.getFullYear(), 0, 4);
+  return 1 + Math.round(((tmp - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
+{% if student_heatmap and student_heatmap|length > 0 %}
+renderStudentHeatmap({{ student_heatmap | tojson }}, "{{ selected_student_id }}");
+{% endif %}
+</script>
+{% endblock %}
+

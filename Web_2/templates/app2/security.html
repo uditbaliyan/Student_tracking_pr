@@ -193,24 +193,25 @@
     // We have 4 such events -> for error, for updating student data, 
     // for updating student count and for exiting all students
 
-    // Handles updates for a specific student scan
     socket.on("update_student_data", function(data) {
         console.log("Received student data:", data); // Debug log
         errorMessageDiv.textContent = ""; // Clear any previous error
-        updateStudentDetails(data);
-        // The count is often included here, update it too
+    
+        updateStudentDetails(data); // Update student details
+    
+        // Update the count
         if (data.students_inside !== undefined) {
              studentCountSpan.textContent = data.students_inside;
         }
     });
-
-    // Handles updates to the total count (can be sent separately or with student data)
+    
     socket.on("update_student_count", function(data) {
-        console.log("Received student count update:", data); // Debug log
+        console.log("Received updated student count:", data); // Debug
         if (data.students_inside !== undefined) {
-             studentCountSpan.textContent = data.students_inside;
+            studentCountSpan.textContent = data.students_inside;
         }
     });
+    
 
 
     // Handles error messages from the server

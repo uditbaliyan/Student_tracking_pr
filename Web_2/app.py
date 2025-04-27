@@ -210,8 +210,13 @@ def handle_students(enrollment_number_str):
                 'status': new_status,
                 'students_inside': students_inside_count # Include the latest count
             }
-            # Emit the specific student data AND the updated count
-            emit("update_student_data", student_result_data, broadcast=True)
+            # Emit the specific student data to ONLY the client who sent the enrollment number
+            emit("update_student_data", student_result_data)  # No broadcast here
+
+            # Emit the updated students count to ALL clients
+            emit("update_student_count", {'students_inside': students_inside_count}, broadcast=True)
+
+
 
         else:
             print(f"Invalid enrollment number: {enrollment_number}")
@@ -531,6 +536,7 @@ def analytics():
     plot_batch = px.bar(df_batch, x='batch', y='attendance_count', title="Attendance by Batch").to_html(full_html=False) if not df_batch.empty else "<p>No data</p>"
 
     # GitHub-style calendar heatmap using Plotly
+    # GitHub-style calendar heatmap using Plotly
     student_heatmap = None
     if student_id:
         student_logs = db.session.query(func.date(Log.timestamp).label('date')).filter(
@@ -544,34 +550,13 @@ def analytics():
         log_dates = [row.date for row in student_logs.all()]
         df = pd.Series(1, index=pd.to_datetime(log_dates)).groupby(level=0).count()
         df = df.reindex(pd.date_range(start=start_date or '2024-01-01', end=end_date or datetime.today()), fill_value=0)
-        
-        calendar_df = pd.DataFrame({
-            'date': df.index,
-            'count': df.values,
-            'weekday': df.index.weekday,
-            'week': df.index.isocalendar().week,
-            'month': df.index.month_name(),
-            'year': df.index.year,
-        })
 
-        # Fix for week 1 of next year appearing at the end
-        calendar_df['week'] = calendar_df['week'].apply(lambda x: x if x != 1 or calendar_df['date'].dt.month.iloc[0] == 1 else 53)
-
-        fig = px.imshow(
-            calendar_df.pivot(index='weekday', columns='date', values='count').fillna(0),
-            labels=dict(color='Entries'),
-            color_continuous_scale='greens',
-            aspect='auto',
-            title=f"GitHub-style Attendance Heatmap for {student_id}"
-        )
-        fig.update_yaxes(
-            tickvals=list(range(7)),
-            ticktext=['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        )
-        fig.update_xaxes(visible=False)
-
-        student_heatmap = fig.to_html(full_html=False)
-
+        # Prepare data for template
+        student_heatmap = [
+            {"date": date.strftime('%Y-%m-%d'), "count": int(count)}
+            for date, count in zip(df.index, df.values)
+        ]
+        print(student_heatmap)
     return render_template(
         'app2/analytics.html',
         total_entries=total_entries,
